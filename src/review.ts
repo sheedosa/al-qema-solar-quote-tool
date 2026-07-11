@@ -1,70 +1,61 @@
+import type { Strings } from './i18n'
 import type { FormData } from './types'
 
 export type ReviewRow = { k: string; v: string }
 export type ReviewGroup = { title: string; step: number; rows: ReviewRow[] }
 
-const dash = (v: string | undefined | null) => v || '—'
+/** Builds the grouped, localized review summary shown on the final review screen. */
+export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
+  const R = s.review
+  const dash = (v: string | undefined | null) => v || R.dash
 
-const LABEL_MAPS = {
-  systemType: {
-    hybrid: 'Hybrid',
-    offgrid: 'Off-grid',
-    ongrid: 'On-grid',
-    recommend: 'Recommend for me',
-  } as Record<string, string>,
-  priority: {
-    essentials: 'Essentials only',
-    essentials_ac: 'Essentials + AC',
-    full: 'Full power',
-  } as Record<string, string>,
-  nightEconomy: {
-    yes: 'Essentials only at night',
-    no: 'Similar power day & night',
-  } as Record<string, string>,
-}
-
-/** Builds the grouped review summary shown on the final review screen. */
-export function buildReviewGroups(d: FormData): ReviewGroup[] {
   const coolBits: ReviewRow[] = []
-  coolBits.push({ k: 'AC units', v: String(d.acUnits.length) })
+  coolBits.push({ k: R.keys.acUnits, v: String(d.acUnits.length) })
   d.acUnits.forEach((u, i) => {
     const cap = u.dontKnow
-      ? 'capacity: we’ll check'
+      ? R.capWeCheck
       : u.capValue
         ? u.capValue + ' ' + u.capUnit.toUpperCase()
-        : 'capacity: —'
+        : R.capDash
+    const typeLabel = u.type ? s.opt.acType[u.type] : R.typeDash
     coolBits.push({
-      k: 'AC ' + (i + 1) + (u.location ? ' · ' + u.location : ''),
-      v: dash(u.type) + ', ' + cap + ', ' + u.hours + 'h' + (u.night ? ', nights' : ''),
+      k: R.acPrefix + ' ' + (i + 1) + (u.location ? ' · ' + u.location : ''),
+      v: typeLabel + R.sep + cap + R.sep + u.hours + R.hUnit + (u.night ? R.nights : ''),
     })
   })
-  coolBits.push({
-    k: 'Fridge',
-    v: d.fridge.on
-      ? d.fridge.qty + ' × ' + d.fridge.condition + (d.fridge.alwaysOn ? ', always on' : '')
-      : 'No',
-  })
-  coolBits.push({
-    k: 'Freezer',
-    v: d.freezer.on
-      ? d.freezer.qty + ' × ' + d.freezer.condition + (d.freezer.alwaysOn ? ', always on' : '')
-      : 'No',
-  })
+  const coldValue = (r: FormData['fridge']) =>
+    r.on ? r.qty + ' × ' + s.reviewMap.condition[r.condition] + (r.alwaysOn ? R.alwaysOn : '') : R.no
+  coolBits.push({ k: R.keys.fridge, v: coldValue(d.fridge) })
+  coolBits.push({ k: R.keys.freezer, v: coldValue(d.freezer) })
 
   const lt = d.lighting
+  const lightType = lt.type ? s.opt.bulb[lt.type] : R.typeWord
   const appBits: ReviewRow[] = [
     {
-      k: 'Lighting',
-      v: lt.count + ' bulbs (' + dash(lt.type || 'type —') + '), ' + lt.nightHours + 'h at night',
+      k: R.keys.lighting,
+      v:
+        lt.count +
+        ' ' +
+        R.bulbsWord +
+        ' (' +
+        lightType +
+        ')' +
+        R.sep +
+        lt.nightHours +
+        R.hUnit +
+        ' ' +
+        R.atNightSuffix,
     },
   ]
-  d.appliances.forEach((a) =>
+  d.appliances.forEach((a) => {
+    const name = a.custom ? a.name || R.customDevice : s.opt.preset[a.name] || a.name
     appBits.push({
-      k: dash(a.name || 'Custom device'),
-      v: a.qty + ' × ' + a.hours + 'h/day' + (a.night ? ', nights' : ''),
-    }),
-  )
-  if (d.heavyDuty.length) appBits.push({ k: 'Heavy-duty', v: d.heavyDuty.length + ' selected' })
+      k: name,
+      v: a.qty + ' × ' + a.hours + R.hUnit + R.perDay + (a.night ? R.nights : ''),
+    })
+  })
+  if (d.heavyDuty.length)
+    appBits.push({ k: R.keys.heavyDuty, v: d.heavyDuty.length + ' ' + R.selectedSuffix })
 
   const photoCount = (Object.keys(d.photos) as (keyof FormData['photos'])[]).filter(
     (k) => d.photos[k],
@@ -72,45 +63,50 @@ export function buildReviewGroups(d: FormData): ReviewGroup[] {
 
   return [
     {
-      title: 'Your details',
+      title: R.groups.details,
       step: 1,
       rows: [
-        { k: 'Name', v: dash(d.name) },
-        { k: 'WhatsApp', v: d.whatsapp ? '+218 ' + d.whatsapp : '—' },
+        { k: R.keys.name, v: dash(d.name) },
+        { k: R.keys.whatsapp, v: d.whatsapp ? '‎+218 ' + d.whatsapp : R.dash },
         {
-          k: 'Property',
-          v: d.propertyType === 'Other' ? dash(d.propertyOther) : dash(d.propertyType),
+          k: R.keys.property,
+          v:
+            d.propertyType === 'Other'
+              ? dash(d.propertyOther)
+              : dash(s.opt.property[d.propertyType]),
         },
-        { k: 'City / area', v: dash(d.city) },
+        { k: R.keys.city, v: dash(d.city) },
       ],
     },
     {
-      title: 'Power use',
+      title: R.groups.power,
       step: 2,
       rows: [
-        { k: 'Supply', v: dash(d.supply) },
-        { k: 'Daily cuts', v: dash(d.outageHours) },
-        { k: 'Peak time', v: dash(d.peakTime) },
-        { k: 'At night', v: dash(LABEL_MAPS.nightEconomy[d.nightEconomy]) },
-        { k: 'Usage pattern', v: dash(d.operation) },
+        { k: R.keys.supply, v: dash(s.opt.supply[d.supply]) },
+        { k: R.keys.dailyCuts, v: dash(s.opt.outage[d.outageHours]) },
+        { k: R.keys.peakTime, v: dash(s.opt.peak[d.peakTime]) },
+        { k: R.keys.atNight, v: dash(s.reviewMap.nightEconomy[d.nightEconomy]) },
+        { k: R.keys.usagePattern, v: dash(s.opt.operation[d.operation]) },
       ],
     },
-    { title: 'Cooling', step: 3, rows: coolBits },
-    { title: 'Appliances', step: 4, rows: appBits },
+    { title: R.groups.cooling, step: 3, rows: coolBits },
+    { title: R.groups.appliances, step: 4, rows: appBits },
     {
-      title: 'Preferences',
+      title: R.groups.preferences,
       step: 5,
       rows: [
-        { k: 'System type', v: dash(LABEL_MAPS.systemType[d.systemType]) },
+        { k: R.keys.systemType, v: dash(s.reviewMap.system[d.systemType]) },
         {
-          k: 'Cut priority',
+          k: R.keys.cutPriority,
           v:
-            dash(LABEL_MAPS.priority[d.priority]) +
-            (d.priority === 'essentials_ac' ? ' (' + d.priorityAcCount + ' AC)' : ''),
+            dash(s.reviewMap.priority[d.priority]) +
+            (d.priority === 'essentials_ac'
+              ? ' (' + d.priorityAcCount + ' ' + s.reviewMap.acSuffix + ')'
+              : ''),
         },
-        { k: 'Roof space', v: dash(d.roofSpace) },
-        { k: 'Roof shade', v: dash(d.roofShade) },
-        { k: 'Photos', v: photoCount + ' of 4 added' },
+        { k: R.keys.roofSpace, v: dash(s.opt.roof[d.roofSpace]) },
+        { k: R.keys.roofShade, v: dash(s.opt.shade[d.roofShade]) },
+        { k: R.keys.photos, v: photoCount + ' ' + R.ofFourAdded },
       ],
     },
   ]

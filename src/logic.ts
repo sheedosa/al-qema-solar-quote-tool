@@ -146,8 +146,8 @@ export function estimate(d: FormData): Estimate {
     kwp: kwpLo.toFixed(1) + '–' + kwpHi.toFixed(1),
     inv: String(inv),
     bat: batLo + '–' + batHi,
-    daily: '~' + Math.round(daily) + ' kWh/day',
-    price: 'From ~' + price.toLocaleString('en-US') + ' LYD',
+    dailyKwh: Math.round(daily),
+    priceLyd: price,
   }
 }
 
@@ -170,18 +170,13 @@ export function canContinue(d: FormData, step: number): boolean {
 }
 
 /** Build the WhatsApp deep-link for the completed estimate. */
-export function whatsappLink(d: FormData, est: Estimate, waNumber: string): string {
+export function whatsappLink(
+  d: FormData,
+  est: Estimate,
+  waNumber: string,
+  buildMessage: (name: string, kwp: string, inv: string, bat: string) => string,
+): string {
   const num = waNumber.replace(/\D/g, '')
-  const text = encodeURIComponent(
-    'Hello Al Qema! I just completed the solar estimate form. My name is ' +
-      (d.name || '') +
-      ' — estimated system: ' +
-      est.kwp +
-      ' kWp, ' +
-      est.inv +
-      ' kW inverter, ' +
-      est.bat +
-      ' kWh battery. Please send my detailed quote.',
-  )
+  const text = encodeURIComponent(buildMessage(d.name || '', est.kwp, est.inv, est.bat))
   return 'https://wa.me/' + num + '?text=' + text
 }

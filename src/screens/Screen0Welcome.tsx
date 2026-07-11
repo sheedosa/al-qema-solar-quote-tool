@@ -1,4 +1,5 @@
 import { C } from '../theme'
+import { useStrings } from '../i18n'
 
 function Badge({ icon, children }: { icon: JSX.Element; children: string }) {
   return (
@@ -22,6 +23,7 @@ function Badge({ icon, children }: { icon: JSX.Element; children: string }) {
 }
 
 export function Screen0Welcome({ onStart }: { onStart: () => void }) {
+  const s = useStrings()
   return (
     <div
       style={{
@@ -70,7 +72,7 @@ export function Screen0Welcome({ onStart }: { onStart: () => void }) {
           textWrap: 'pretty',
         }}
       >
-        Get your solar system estimate
+        {s.welcome.title}
       </h1>
       <p
         style={{
@@ -83,8 +85,7 @@ export function Screen0Welcome({ onStart }: { onStart: () => void }) {
           textWrap: 'pretty',
         }}
       >
-        Answer a few quick questions about what you'd like to power. You'll get an instant
-        estimate, and our team will follow up on WhatsApp with a tailored quote.
+        {s.welcome.subtitle}
       </p>
       <div
         style={{
@@ -111,7 +112,7 @@ export function Screen0Welcome({ onStart }: { onStart: () => void }) {
             </svg>
           }
         >
-          ~3–4 minutes
+          {s.welcome.minutes}
         </Badge>
         <Badge
           icon={
@@ -130,7 +131,7 @@ export function Screen0Welcome({ onStart }: { onStart: () => void }) {
             </svg>
           }
         >
-          No technical knowledge needed
+          {s.welcome.noTech}
         </Badge>
         <Badge
           icon={
@@ -148,7 +149,7 @@ export function Screen0Welcome({ onStart }: { onStart: () => void }) {
             </svg>
           }
         >
-          Free, no obligation
+          {s.welcome.free}
         </Badge>
       </div>
       <button
@@ -169,10 +170,10 @@ export function Screen0Welcome({ onStart }: { onStart: () => void }) {
           transition: 'background 0.15s',
         }}
       >
-        Start
+        {s.welcome.start}
       </button>
       <p style={{ margin: '24px 0 0', fontSize: 12.5, fontWeight: 400, color: C.faint }}>
-        Trusted by 4,000+ customers · 350+ projects across Libya
+        {s.welcome.trust}
       </p>
     </div>
   )

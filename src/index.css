@@ -21,7 +21,7 @@
 body {
   margin: 0;
   background: var(--canvas);
-  font-family: 'Cairo', system-ui, sans-serif;
+  font-family: 'Tajawal', system-ui, sans-serif;
   color: var(--body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -40,13 +40,13 @@ a:hover {
 input::placeholder,
 textarea::placeholder {
   color: var(--faint);
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Tajawal', sans-serif;
 }
 
 input,
 textarea,
 button {
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Tajawal', sans-serif;
 }
 
 input:focus,

@@ -1,76 +1,47 @@
 import { C } from '../theme'
-import { Card, CheckOption, Stepper, CameraIcon } from '../components/ui'
+import { Card, CheckOption, Stepper, CameraIcon, Kicker } from '../components/ui'
+import { PRIORITY_VALS, ROOF_VALS, SHADE_VALS, SYSTEM_VALS, useStrings } from '../i18n'
 import { fileUrl, type QuoteForm } from '../useQuoteForm'
 import type { PhotoKey } from '../types'
 
-const SYSTEM = [
-  { label: 'Hybrid', val: 'hybrid' },
-  { label: 'Off-grid', val: 'offgrid' },
-  { label: 'On-grid (if available)', val: 'ongrid' },
-  { label: 'Not sure — recommend for me', val: 'recommend' },
-]
-const PRIORITY = [
-  { label: 'Essentials only', val: 'essentials' },
-  { label: 'Essentials + AC', val: 'essentials_ac' },
-  { label: 'Full power as much as possible', val: 'full' },
-]
-const ROOF = ['Small', 'Medium', 'Large', 'Not sure']
-const SHADE = ['Yes', 'No']
-
-const PHOTO_DEFS: { key: PhotoKey; label: string }[] = [
-  { key: 'panel', label: 'Main electrical panel' },
-  { key: 'meter', label: 'Meter / supply point' },
-  { key: 'roof', label: 'Roof / panel area' },
-  { key: 'stickers', label: 'AC / pump stickers' },
-]
-
+const PHOTO_KEYS: PhotoKey[] = ['panel', 'meter', 'roof', 'stickers']
 const sectionTitle: React.CSSProperties = { fontSize: 16, fontWeight: 500 }
 
 export function Screen5Preferences({ form }: { form: QuoteForm }) {
   const { data: d, setD, setPhoto } = form
+  const s = useStrings()
 
   return (
     <div style={{ animation: 'stepIn 0.35s ease' }}>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: C.muted,
-          marginBottom: 6,
-        }}
-      >
-        Your preferences
-      </div>
+      <Kicker>{s.preferences.kicker}</Kicker>
       <h2 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, color: C.ink }}>
-        System preferences
+        {s.preferences.title}
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={sectionTitle}>System type</div>
+          <div style={sectionTitle}>{s.preferences.systemType}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {SYSTEM.map((o) => (
+            {SYSTEM_VALS.map((val) => (
               <CheckOption
-                key={o.val}
-                label={o.label}
-                selected={d.systemType === o.val}
-                onClick={() => setD({ systemType: o.val })}
+                key={val}
+                label={s.opt.system[val]}
+                selected={d.systemType === val}
+                onClick={() => setD({ systemType: val })}
               />
             ))}
           </div>
         </Card>
 
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={sectionTitle}>Priority during a power cut</div>
+          <div style={sectionTitle}>{s.preferences.priority}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {PRIORITY.map((o) => (
+            {PRIORITY_VALS.map((val) => (
               <CheckOption
-                key={o.val}
-                label={o.label}
-                selected={d.priority === o.val}
-                onClick={() => setD({ priority: o.val })}
+                key={val}
+                label={s.opt.priority[val]}
+                selected={d.priority === val}
+                onClick={() => setD({ priority: val })}
               />
             ))}
           </div>
@@ -87,7 +58,7 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
                 marginTop: 4,
               }}
             >
-              <div style={{ fontSize: 14, fontWeight: 500 }}>How many ACs during a cut?</div>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{s.preferences.priorityAcCount}</div>
               <Stepper
                 value={d.priorityAcCount}
                 valueWidth={40}
@@ -100,14 +71,14 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
         </Card>
 
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={sectionTitle}>Roof space for panels</div>
+          <div style={sectionTitle}>{s.preferences.roofSpace}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {ROOF.map((label) => (
+            {ROOF_VALS.map((val) => (
               <CheckOption
-                key={label}
-                label={label}
-                selected={d.roofSpace === label}
-                onClick={() => setD({ roofSpace: label })}
+                key={val}
+                label={s.opt.roof[val]}
+                selected={d.roofSpace === val}
+                onClick={() => setD({ roofSpace: val })}
                 style={{ flex: '1 1 140px', width: 'auto' }}
               />
             ))}
@@ -115,14 +86,14 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
         </Card>
 
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={sectionTitle}>Any shade on the roof (buildings/trees)?</div>
+          <div style={sectionTitle}>{s.preferences.shadeQ}</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {SHADE.map((label) => (
+            {SHADE_VALS.map((val) => (
               <CheckOption
-                key={label}
-                label={label}
-                selected={d.roofShade === label}
-                onClick={() => setD({ roofShade: label })}
+                key={val}
+                label={s.opt.shade[val]}
+                selected={d.roofShade === val}
+                onClick={() => setD({ roofShade: val })}
                 style={{ flex: 1, width: 'auto' }}
               />
             ))}
@@ -131,9 +102,9 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
 
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={sectionTitle}>
-            Photos{' '}
+            {s.preferences.photos}{' '}
             <span style={{ color: C.muted, fontWeight: 400, fontSize: 13 }}>
-              (optional, speeds up your quote)
+              {s.preferences.photosOptional}
             </span>
           </div>
           <div
@@ -143,10 +114,11 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
               gap: 10,
             }}
           >
-            {PHOTO_DEFS.map((t) => {
-              const v = d.photos[t.key]
+            {PHOTO_KEYS.map((key) => {
+              const v = d.photos[key]
+              const label = s.preferences.photoLabels[key]
               return (
-                <div key={t.key}>
+                <div key={key}>
                   {!v ? (
                     <label
                       onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.red)}
@@ -169,13 +141,13 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
                       <span
                         style={{ fontSize: 13, fontWeight: 600, color: C.body, lineHeight: 1.35 }}
                       >
-                        {t.label}
+                        {label}
                       </span>
                       <input
                         type="file"
                         accept="image/*"
                         capture="environment"
-                        onChange={(e) => fileUrl(e, (url) => setPhoto(t.key, url))}
+                        onChange={(e) => fileUrl(e, (url) => setPhoto(key, url))}
                         style={{ display: 'none' }}
                       />
                     </label>
@@ -191,11 +163,11 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
                     >
                       <img
                         src={v}
-                        alt={t.label}
+                        alt={label}
                         style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
                       />
                       <button
-                        onClick={() => setPhoto(t.key, null)}
+                        onClick={() => setPhoto(key, null)}
                         style={{
                           position: 'absolute',
                           top: 6,
@@ -220,7 +192,7 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
             })}
           </div>
           <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
-            Optional, but photos help us quote faster and more accurately.
+            {s.preferences.photosHint}
           </div>
         </Card>
       </div>

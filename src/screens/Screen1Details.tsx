@@ -1,46 +1,47 @@
 import { C, inputStyle } from '../theme'
 import { Card, Kicker } from '../components/ui'
 import { PROPERTY_ICON_KEY, PropertyIcon } from '../components/PropertyIcon'
+import { PROPERTY_VALS, useStrings } from '../i18n'
 import type { QuoteForm } from '../useQuoteForm'
 
-const PROPERTY_OPTS = Object.keys(PROPERTY_ICON_KEY)
-
 const labelStyle: React.CSSProperties = { fontSize: 15, fontWeight: 500 }
-const req = <span style={{ color: C.red }}>*</span>
 
 export function Screen1Details({ form }: { form: QuoteForm }) {
   const { data: d, setD } = form
+  const s = useStrings()
+  const req = <span style={{ color: C.red }}>*</span>
 
   return (
     <div style={{ animation: 'stepIn 0.35s ease' }}>
-      <Kicker>About you</Kicker>
+      <Kicker>{s.details.kicker}</Kicker>
       <h2 style={{ margin: '0 0 6px', fontSize: 24, fontWeight: 600, color: C.ink }}>
-        Let's start with your details
+        {s.details.title}
       </h2>
       <p style={{ margin: '0 0 24px', fontSize: 13, fontWeight: 400, color: C.muted }}>
-        Takes about 3–4 minutes. You don't need to know technical details — we'll help.
+        {s.details.subtitle}
       </p>
 
       <Card style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label htmlFor="f-name" style={labelStyle}>
-            Full name {req}
+            {s.details.fullName} {req}
           </label>
           <input
             id="f-name"
             type="text"
             value={d.name}
             onChange={(e) => setD({ name: e.target.value })}
-            placeholder="Your name"
+            placeholder={s.details.yourName}
             style={inputStyle}
           />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label htmlFor="f-wa" style={labelStyle}>
-            WhatsApp number {req}
+            {s.details.whatsapp} {req}
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          {/* Phone stays LTR regardless of page direction. */}
+          <div style={{ display: 'flex', gap: 8 }} dir="ltr">
             <div
               style={{
                 display: 'flex',
@@ -62,17 +63,17 @@ export function Screen1Details({ form }: { form: QuoteForm }) {
               inputMode="tel"
               value={d.whatsapp}
               onChange={(e) => setD({ whatsapp: e.target.value })}
-              placeholder="91 123 4567"
+              placeholder={s.details.waPlaceholder}
               style={{ ...inputStyle, flex: 1 }}
             />
           </div>
-          <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
-            We'll send your detailed quote here.
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>{s.details.waHelp}</div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={labelStyle}>Property type {req}</div>
+          <div style={labelStyle}>
+            {s.details.propertyType} {req}
+          </div>
           <div
             style={{
               display: 'grid',
@@ -80,12 +81,12 @@ export function Screen1Details({ form }: { form: QuoteForm }) {
               gap: 8,
             }}
           >
-            {PROPERTY_OPTS.map((label) => {
-              const sel = d.propertyType === label
+            {PROPERTY_VALS.map((val) => {
+              const sel = d.propertyType === val
               return (
                 <button
-                  key={label}
-                  onClick={() => setD({ propertyType: label })}
+                  key={val}
+                  onClick={() => setD({ propertyType: val })}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -103,12 +104,9 @@ export function Screen1Details({ form }: { form: QuoteForm }) {
                   }}
                 >
                   <span style={{ display: 'flex' }}>
-                    <PropertyIcon
-                      name={PROPERTY_ICON_KEY[label]}
-                      color={sel ? C.red : C.muted}
-                    />
+                    <PropertyIcon name={PROPERTY_ICON_KEY[val]} color={sel ? C.red : C.muted} />
                   </span>
-                  {label}
+                  {s.opt.property[val]}
                 </button>
               )
             })}
@@ -118,7 +116,7 @@ export function Screen1Details({ form }: { form: QuoteForm }) {
               type="text"
               value={d.propertyOther}
               onChange={(e) => setD({ propertyOther: e.target.value })}
-              placeholder="Tell us what kind of place it is"
+              placeholder={s.details.otherPlaceholder}
               style={inputStyle}
             />
           )}
@@ -126,14 +124,14 @@ export function Screen1Details({ form }: { form: QuoteForm }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label htmlFor="f-city" style={labelStyle}>
-            City / area {req}
+            {s.details.city} {req}
           </label>
           <input
             id="f-city"
             type="text"
             value={d.city}
             onChange={(e) => setD({ city: e.target.value })}
-            placeholder="e.g. Tripoli, Hay Al-Andalus"
+            placeholder={s.details.cityPlaceholder}
             style={inputStyle}
           />
         </div>

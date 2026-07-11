@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C } from './theme'
 import { SHOW_PRICE, WA_NUMBER } from './config'
+import { useLang } from './i18n'
 import { canContinue, estimate, whatsappLink } from './logic'
 import { useQuoteForm } from './useQuoteForm'
 import { Header } from './components/Header'
@@ -14,12 +15,21 @@ import { Screen5Preferences } from './screens/Screen5Preferences'
 import { Screen6Review } from './screens/Screen6Review'
 import { Screen7Result } from './screens/Screen7Result'
 
-const STEP_TITLES = ['', 'About you', 'Power use', 'Cooling', 'Appliances', 'Preferences', 'Review']
-
 export default function App() {
   const [step, setStep] = useState(0)
+  const { s } = useLang()
   const form = useQuoteForm()
   const d = form.data
+
+  const stepTitles = [
+    '',
+    s.header.titles.aboutYou,
+    s.header.titles.powerUse,
+    s.header.titles.cooling,
+    s.header.titles.appliances,
+    s.header.titles.preferences,
+    s.header.titles.review,
+  ]
 
   // Reset scroll position when the step changes.
   useEffect(() => {
@@ -32,8 +42,8 @@ export default function App() {
 
   const est = useMemo(() => estimate(d), [d])
   const can = canContinue(d, step)
-  const firstName = d.name.trim().split(/\s+/)[0] || 'friend'
-  const waLink = whatsappLink(d, est, WA_NUMBER)
+  const firstName = d.name.trim().split(/\s+/)[0] || s.result.friend
+  const waLink = whatsappLink(d, est, WA_NUMBER, s.whatsappMsg)
 
   const showNav = step >= 1 && step <= 6
   const goto = (next: number) => setStep(Math.max(0, Math.min(7, next)))
@@ -51,7 +61,7 @@ export default function App() {
         showProgress={step >= 1 && step <= 6}
         progressPct={Math.round((step / 6) * 100) + '%'}
         stepNum={step}
-        stepTitle={STEP_TITLES[step] || ''}
+        stepTitle={stepTitles[step] || ''}
       />
 
       <main
@@ -89,7 +99,7 @@ export default function App() {
             if (can) goto(step + 1)
           }}
           disabled={!can}
-          label={step === 6 ? 'Get my estimate' : 'Continue'}
+          label={step === 6 ? s.nav.getEstimate : s.nav.continue}
         />
       )}
     </div>

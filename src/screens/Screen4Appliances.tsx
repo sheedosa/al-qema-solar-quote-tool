@@ -1,27 +1,17 @@
 import { C, inputStyle } from '../theme'
-import { Card, SegOption, Stepper, Toggle } from '../components/ui'
+import { Card, SegOption, Stepper, Toggle, Kicker } from '../components/ui'
 import { PRESETS } from '../logic'
+import { BULB_VALS, HEAVY_DUTY_VALS, useStrings, type Strings } from '../i18n'
 import type { QuoteForm } from '../useQuoteForm'
 import type { Appliance } from '../types'
 
 const smallLabel: React.CSSProperties = { fontSize: 14, fontWeight: 500 }
 const tinyLabel: React.CSSProperties = { fontSize: 13.5, fontWeight: 500 }
 
-const BULBS = [
-  { label: 'LED', val: 'led' },
-  { label: 'Regular', val: 'regular' },
-  { label: 'Mixed', val: 'mixed' },
-] as const
-
-const HEAVY_DUTY = [
-  { val: 'electric_oven', label: 'Electric oven / air fryer' },
-  { val: 'instant_heater', label: 'High-power heater (instant water heater)' },
-  { val: 'multi_ac_battery', label: 'Several ACs on battery' },
-  { val: 'industrial', label: 'Welding / compressor / lathe (industrial)' },
-]
-
-function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
+function ApplianceRow({ a, form, s }: { a: Appliance; form: QuoteForm; s: Strings }) {
   const { setApp, removeApp } = form
+  const displayName = a.custom ? a.name : s.opt.preset[a.name] || a.name
+
   return (
     <div
       style={{
@@ -39,7 +29,7 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
             type="text"
             value={a.name}
             onChange={(e) => setApp(a.id, { name: e.target.value })}
-            placeholder="Device name"
+            placeholder={s.appliances.deviceName}
             style={{
               flex: 1,
               minHeight: 44,
@@ -53,11 +43,11 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
             }}
           />
         ) : (
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink }}>{a.name}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink }}>{displayName}</div>
         )}
         <button
           onClick={() => removeApp(a.id)}
-          title="Remove"
+          title={s.appliances.remove}
           style={{
             width: 32,
             height: 32,
@@ -76,12 +66,12 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
 
       {a.pump && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={tinyLabel}>Pump size</div>
+          <div style={tinyLabel}>{s.appliances.pumpSize}</div>
           <div style={{ display: 'flex', gap: 8 }}>
             {['0.5', '1', '1.5', '2'].map((hp) => (
               <SegOption
                 key={hp}
-                label={`${hp} hp`}
+                label={hp + s.appliances.hpSuffix}
                 selected={a.hp === hp}
                 onClick={() => setApp(a.id, { hp })}
                 style={{ padding: '6px 8px', fontSize: 13.5 }}
@@ -100,7 +90,7 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
           flexWrap: 'wrap',
         }}
       >
-        <div style={tinyLabel}>Quantity</div>
+        <div style={tinyLabel}>{s.appliances.quantity}</div>
         <Stepper
           value={a.qty}
           valueWidth={40}
@@ -112,8 +102,10 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div style={tinyLabel}>Hours per day</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.red }}>{a.hours} h</div>
+          <div style={tinyLabel}>{s.appliances.hoursPerDay}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.red }}>
+            {a.hours} {s.units.h}
+          </div>
         </div>
         <input
           type="range"
@@ -127,20 +119,23 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={tinyLabel}>Run at night?</div>
+        <div style={tinyLabel}>{s.appliances.runNight}</div>
         <Toggle on={a.night} onClick={() => setApp(a.id, { night: !a.night })} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <label style={tinyLabel}>
-          Watts <span style={{ color: C.muted, fontWeight: 400, fontSize: 12 }}>(optional)</span>
+          {s.appliances.watts}{' '}
+          <span style={{ color: C.muted, fontWeight: 400, fontSize: 12 }}>
+            {s.appliances.optional}
+          </span>
         </label>
         <input
           type="number"
           inputMode="numeric"
           value={a.watts}
           onChange={(e) => setApp(a.id, { watts: e.target.value })}
-          placeholder="We'll estimate"
+          placeholder={s.appliances.wattsPlaceholder}
           style={{
             minHeight: 44,
             padding: '8px 12px',
@@ -157,8 +152,44 @@ function ApplianceRow({ a, form }: { a: Appliance; form: QuoteForm }) {
   )
 }
 
+function ApplianceChip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = C.red
+        e.currentTarget.style.color = C.red
+        e.currentTarget.style.background = C.redTint
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = C.border
+        e.currentTarget.style.color = C.body
+        e.currentTarget.style.background = C.white
+      }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        minHeight: 40,
+        padding: '8px 14px',
+        borderRadius: 999,
+        border: `1px solid ${C.border}`,
+        background: C.white,
+        color: C.body,
+        fontSize: 13.5,
+        fontWeight: 600,
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ color: C.red, fontWeight: 700 }}>+</span>
+      {label}
+    </button>
+  )
+}
+
 export function Screen4Appliances({ form }: { form: QuoteForm }) {
   const { data: d, setLight, addAppliance, setD } = form
+  const s = useStrings()
   const lt = d.lighting
 
   const addedNames = d.appliances.map((a) => a.name)
@@ -166,35 +197,24 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
 
   return (
     <div style={{ animation: 'stepIn 0.35s ease' }}>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: C.muted,
-          marginBottom: 6,
-        }}
-      >
-        What else to power
-      </div>
+      <Kicker>{s.appliances.kicker}</Kicker>
       <h2 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, color: C.ink }}>
-        Lighting &amp; appliances
+        {s.appliances.title}
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Lighting */}
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>Lighting</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>{s.appliances.lighting}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={smallLabel}>Bulb type</div>
+            <div style={smallLabel}>{s.appliances.bulbType}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {BULBS.map((b) => (
+              {BULB_VALS.map((val) => (
                 <SegOption
-                  key={b.val}
-                  label={b.label}
-                  selected={lt.type === b.val}
-                  onClick={() => setLight({ type: b.val })}
+                  key={val}
+                  label={s.opt.bulb[val]}
+                  selected={lt.type === val}
+                  onClick={() => setLight({ type: val as typeof lt.type })}
                   style={{ padding: '8px 12px' }}
                 />
               ))}
@@ -209,7 +229,7 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
               flexWrap: 'wrap',
             }}
           >
-            <div style={smallLabel}>Number of bulbs</div>
+            <div style={smallLabel}>{s.appliances.numberBulbs}</div>
             <Stepper
               value={lt.count}
               onDec={() => setLight({ count: Math.max(0, lt.count - 1) })}
@@ -218,25 +238,29 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={smallLabel}>
-              Watts per bulb{' '}
-              <span style={{ color: C.muted, fontWeight: 400, fontSize: 12.5 }}>(optional)</span>
+              {s.appliances.wattsPerBulb}{' '}
+              <span style={{ color: C.muted, fontWeight: 400, fontSize: 12.5 }}>
+                {s.appliances.optional}
+              </span>
             </label>
             <input
               type="number"
               inputMode="numeric"
               value={lt.watts}
               onChange={(e) => setLight({ watts: e.target.value })}
-              placeholder="Not sure"
+              placeholder={s.appliances.notSure}
               style={inputStyle}
             />
             <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
-              Leave blank if unsure — LED is usually 5–15W.
+              {s.appliances.bulbHint}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={smallLabel}>Hours lit at night</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.red }}>{lt.nightHours} h</div>
+              <div style={smallLabel}>{s.appliances.hoursNight}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.red }}>
+                {lt.nightHours} {s.units.h}
+              </div>
             </div>
             <input
               type="range"
@@ -253,21 +277,27 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
         {/* Appliance builder */}
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>Appliances</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>
+              {s.appliances.appliancesTitle}
+            </div>
             <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
-              Tap to add what you'd like to run. Don't worry about watts — we'll estimate.
+              {s.appliances.appliancesHint}
             </div>
           </div>
 
           {d.appliances.map((a) => (
-            <ApplianceRow key={a.id} a={a} form={form} />
+            <ApplianceRow key={a.id} a={a} form={form} s={s} />
           ))}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {chips.map((p) => (
-              <ApplianceChip key={p.name} label={p.name} onClick={() => addAppliance(p)} />
+              <ApplianceChip
+                key={p.name}
+                label={s.opt.preset[p.name] || p.name}
+                onClick={() => addAppliance(p)}
+              />
             ))}
-            <ApplianceChip label="Add other" onClick={() => addAppliance(null)} />
+            <ApplianceChip label={s.appliances.addOther} onClick={() => addAppliance(null)} />
           </div>
         </Card>
 
@@ -307,20 +337,20 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
                 textWrap: 'pretty',
               }}
             >
-              These draw a lot of power and need a special setup. Tick any you'd still like to run:
+              {s.appliances.heavyIntro}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {HEAVY_DUTY.map((h) => {
-              const sel = d.heavyDuty.indexOf(h.val) !== -1
+            {HEAVY_DUTY_VALS.map((val) => {
+              const sel = d.heavyDuty.indexOf(val) !== -1
               return (
                 <button
-                  key={h.val}
+                  key={val}
                   onClick={() =>
                     setD({
                       heavyDuty: sel
-                        ? d.heavyDuty.filter((x) => x !== h.val)
-                        : d.heavyDuty.concat([h.val]),
+                        ? d.heavyDuty.filter((x) => x !== val)
+                        : d.heavyDuty.concat([val]),
                     })
                   }
                   style={{
@@ -364,7 +394,9 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </span>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: C.body }}>{h.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: C.body }}>
+                    {s.opt.heavyDuty[val]}
+                  </span>
                 </button>
               )
             })}
@@ -372,40 +404,5 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function ApplianceChip({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = C.red
-        e.currentTarget.style.color = C.red
-        e.currentTarget.style.background = C.redTint
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = C.border
-        e.currentTarget.style.color = C.body
-        e.currentTarget.style.background = C.white
-      }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        minHeight: 40,
-        padding: '8px 14px',
-        borderRadius: 999,
-        border: `1px solid ${C.border}`,
-        background: C.white,
-        color: C.body,
-        fontSize: 13.5,
-        fontWeight: 600,
-        cursor: 'pointer',
-      }}
-    >
-      <span style={{ color: C.red, fontWeight: 700 }}>+</span>
-      {label}
-    </button>
   )
 }

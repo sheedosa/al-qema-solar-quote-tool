@@ -1,4 +1,5 @@
 import { C } from '../theme'
+import { useStrings } from '../i18n'
 
 export function FooterNav({
   backVisible,
@@ -13,6 +14,7 @@ export function FooterNav({
   disabled: boolean
   label: string
 }) {
+  const s = useStrings()
   return (
     <div
       style={{
@@ -48,7 +50,7 @@ export function FooterNav({
               cursor: 'pointer',
             }}
           >
-            Back
+            {s.nav.back}
           </button>
         ) : (
           <span />

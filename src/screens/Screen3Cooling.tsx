@@ -1,5 +1,6 @@
 import { C, inputStyle } from '../theme'
-import { Card, SegOption, Stepper, Toggle, CameraIcon } from '../components/ui'
+import { Card, SegOption, Stepper, Toggle, CameraIcon, Kicker } from '../components/ui'
+import { INVERTER_VALS, useStrings, type Strings } from '../i18n'
 import { fileUrl, type QuoteForm } from '../useQuoteForm'
 import type { AcUnit, ColdUnit } from '../types'
 
@@ -9,13 +10,15 @@ function AcRow({
   u,
   index,
   form,
+  s,
 }: {
   u: AcUnit
   index: number
   form: QuoteForm
+  s: Strings
 }) {
   const { setAc, removeAc } = form
-  const capPlaceholder = u.capUnit === 'btu' ? 'e.g. 18000' : 'e.g. 1.5'
+  const capPlaceholder = u.capUnit === 'btu' ? s.cooling.capBtuPlaceholder : s.cooling.capTonPlaceholder
 
   return (
     <Card
@@ -38,12 +41,12 @@ function AcRow({
               padding: '3px 12px',
             }}
           >
-            AC {index + 1}
+            {s.cooling.acLabel} {index + 1}
           </div>
         </div>
         <button
           onClick={() => removeAc(index)}
-          title="Remove this AC"
+          title={s.cooling.removeAc}
           style={{
             width: 32,
             height: 32,
@@ -60,23 +63,23 @@ function AcRow({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={smallLabel}>Location</label>
+        <label style={smallLabel}>{s.cooling.location}</label>
         <input
           type="text"
           value={u.location}
           onChange={(e) => setAc(index, { location: e.target.value })}
-          placeholder="e.g. Living room"
+          placeholder={s.cooling.locationPlaceholder}
           style={inputStyle}
         />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={smallLabel}>Type</div>
+        <div style={smallLabel}>{s.cooling.type}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {(['Split', 'Window'] as const).map((t) => (
             <SegOption
               key={t}
-              label={t}
+              label={s.opt.acType[t]}
               selected={u.type === t}
               onClick={() => setAc(index, { type: t })}
             />
@@ -86,7 +89,7 @@ function AcRow({
 
       {!u.dontKnow && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={smallLabel}>Capacity</div>
+          <div style={smallLabel}>{s.cooling.capacity}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="number"
@@ -141,7 +144,7 @@ function AcRow({
               textDecoration: 'underline',
             }}
           >
-            I don't know
+            {s.cooling.dontKnow}
           </button>
         </div>
       )}
@@ -179,13 +182,13 @@ function AcRow({
             >
               <path d="M20 6L9 17l-5-5" />
             </svg>
-            No problem — we'll figure it out for you.
+            {s.cooling.noProblem}
           </div>
           <input
             type="text"
             value={u.model}
             onChange={(e) => setAc(index, { model: e.target.value })}
-            placeholder="Model (if you can see it, e.g. LG Dual Inverter)"
+            placeholder={s.cooling.modelPlaceholder}
             style={{ ...inputStyle, background: C.white }}
           />
           {!u.photo ? (
@@ -204,12 +207,12 @@ function AcRow({
             >
               <CameraIcon />
               <span style={{ fontSize: 13.5, fontWeight: 600, color: C.body }}>
-                Add photo of the sticker
+                {s.cooling.addPhoto}
               </span>
               <span
                 style={{ fontSize: 12, fontWeight: 400, color: C.muted, textAlign: 'center' }}
               >
-                Snap the label on the indoor or outdoor unit — we'll read it.
+                {s.cooling.addPhotoHint}
               </span>
               <input
                 type="file"
@@ -233,11 +236,11 @@ function AcRow({
             >
               <img
                 src={u.photo}
-                alt="AC sticker"
+                alt=""
                 style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }}
               />
               <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: C.green }}>
-                Photo added ✓
+                {s.cooling.photoAdded}
               </span>
               <button
                 onClick={() => setAc(index, { photo: null })}
@@ -257,18 +260,14 @@ function AcRow({
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={smallLabel}>Inverter type AC?</div>
+        <div style={smallLabel}>{s.cooling.inverterQ}</div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {([
-            { label: 'Yes', val: 'yes' },
-            { label: 'No', val: 'no' },
-            { label: 'Not sure', val: 'unsure' },
-          ] as const).map((x) => (
+          {INVERTER_VALS.map((val) => (
             <SegOption
-              key={x.val}
-              label={x.label}
-              selected={u.inverter === x.val}
-              onClick={() => setAc(index, { inverter: x.val })}
+              key={val}
+              label={s.opt.inverter[val]}
+              selected={u.inverter === val}
+              onClick={() => setAc(index, { inverter: val as AcUnit['inverter'] })}
               style={{ padding: '8px 10px' }}
             />
           ))}
@@ -277,8 +276,10 @@ function AcRow({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div style={smallLabel}>Hours per day</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.red }}>{u.hours} h</div>
+          <div style={smallLabel}>{s.cooling.hoursPerDay}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.red }}>
+            {u.hours} {s.units.h}
+          </div>
         </div>
         <input
           type="range"
@@ -292,7 +293,7 @@ function AcRow({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={smallLabel}>Run at night?</div>
+        <div style={smallLabel}>{s.cooling.runNight}</div>
         <Toggle on={u.night} onClick={() => setAc(index, { night: !u.night })} />
       </div>
     </Card>
@@ -304,11 +305,13 @@ function ColdRow({
   label,
   r,
   form,
+  s,
 }: {
   keyName: 'fridge' | 'freezer'
   label: string
   r: ColdUnit
   form: QuoteForm
+  s: Strings
 }) {
   const { setCold } = form
   return (
@@ -338,7 +341,7 @@ function ColdRow({
               flexWrap: 'wrap',
             }}
           >
-            <div style={smallLabel}>How many?</div>
+            <div style={smallLabel}>{s.cooling.howMany}</div>
             <Stepper
               value={r.qty}
               onDec={() => setCold(keyName, { qty: Math.max(1, r.qty - 1) })}
@@ -348,9 +351,9 @@ function ColdRow({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={smallLabel}>
-              Capacity in liters{' '}
+              {s.cooling.capacityL}{' '}
               <span style={{ color: C.muted, fontWeight: 400, fontSize: 12.5 }}>
-                (optional — leave blank if unsure)
+                {s.cooling.capacityLOptional}
               </span>
             </label>
             <input
@@ -358,27 +361,27 @@ function ColdRow({
               inputMode="numeric"
               value={r.capacityL}
               onChange={(e) => setCold(keyName, { capacityL: e.target.value })}
-              placeholder="e.g. 400"
+              placeholder={s.cooling.capacityLPlaceholder}
               style={inputStyle}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={smallLabel}>Condition</div>
+            <div style={smallLabel}>{s.cooling.condition}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {(['New', 'Old'] as const).map((c) => (
+              {(['new', 'old'] as const).map((c) => (
                 <SegOption
                   key={c}
-                  label={c}
-                  selected={r.condition === (c.toLowerCase() as ColdUnit['condition'])}
-                  onClick={() => setCold(keyName, { condition: c.toLowerCase() as ColdUnit['condition'] })}
+                  label={s.opt.condition[c]}
+                  selected={r.condition === c}
+                  onClick={() => setCold(keyName, { condition: c })}
                 />
               ))}
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={smallLabel}>Always running?</div>
+            <div style={smallLabel}>{s.cooling.alwaysRunning}</div>
             <Toggle on={r.alwaysOn} onClick={() => setCold(keyName, { alwaysOn: !r.alwaysOn })} />
           </div>
         </div>
@@ -389,23 +392,13 @@ function ColdRow({
 
 export function Screen3Cooling({ form }: { form: QuoteForm }) {
   const { data: d, setAcCount } = form
+  const s = useStrings()
 
   return (
     <div style={{ animation: 'stepIn 0.35s ease' }}>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: C.muted,
-          marginBottom: 6,
-        }}
-      >
-        Cooling
-      </div>
+      <Kicker>{s.cooling.kicker}</Kicker>
       <h2 style={{ margin: '0 0 6px', fontSize: 24, fontWeight: 600, color: C.ink }}>
-        Air conditioning &amp; refrigeration
+        {s.cooling.title}
       </h2>
       <p
         style={{
@@ -416,7 +409,7 @@ export function Screen3Cooling({ form }: { form: QuoteForm }) {
           textWrap: 'pretty',
         }}
       >
-        Air conditioners and fridges affect your system size the most — this is the important part.
+        {s.cooling.intro}
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -430,7 +423,7 @@ export function Screen3Cooling({ form }: { form: QuoteForm }) {
           }}
         >
           <div style={{ fontSize: 16, fontWeight: 500, flex: 1, minWidth: 180 }}>
-            How many AC units do you want to run on solar?
+            {s.cooling.acCount}
           </div>
           <Stepper
             value={d.acUnits.length}
@@ -442,13 +435,13 @@ export function Screen3Cooling({ form }: { form: QuoteForm }) {
         </Card>
 
         {d.acUnits.map((u, i) => (
-          <AcRow key={i} u={u} index={i} form={form} />
+          <AcRow key={i} u={u} index={i} form={form} s={s} />
         ))}
 
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>Fridges &amp; freezers</div>
-          <ColdRow keyName="fridge" label="Fridge" r={d.fridge} form={form} />
-          <ColdRow keyName="freezer" label="Freezer" r={d.freezer} form={form} />
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>{s.cooling.fridgesTitle}</div>
+          <ColdRow keyName="fridge" label={s.cooling.fridge} r={d.fridge} form={form} s={s} />
+          <ColdRow keyName="freezer" label={s.cooling.freezer} r={d.freezer} form={form} s={s} />
         </Card>
       </div>
     </div>

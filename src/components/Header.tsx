@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { C } from '../theme'
+import { useLang } from '../i18n'
 
 export function Header({
   showProgress,
@@ -13,6 +14,18 @@ export function Header({
   stepTitle: string
 }) {
   const [logoFailed, setLogoFailed] = useState(false)
+  const { s, lang, setLang } = useLang()
+
+  const langBtn = (active: boolean): React.CSSProperties => ({
+    border: 'none',
+    background: active ? C.red : 'transparent',
+    color: active ? '#fff' : C.muted,
+    fontWeight: 600,
+    fontSize: 13,
+    padding: '5px 14px',
+    cursor: 'pointer',
+    minHeight: 30,
+  })
 
   return (
     <header
@@ -60,13 +73,13 @@ export function Header({
                 letterSpacing: '0.01em',
               }}
             >
-              Al Qema
+              {s.header.brand}
             </span>
           </div>
         ) : (
           <img
             src="https://alqema.ly/assets/img/logo.png"
-            alt="Al Qema"
+            alt={s.header.brand}
             onError={() => setLogoFailed(true)}
             style={{ height: 32, display: 'block' }}
           />
@@ -82,31 +95,16 @@ export function Header({
           }}
         >
           <button
-            style={{
-              border: 'none',
-              background: C.red,
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 13,
-              padding: '5px 14px',
-              cursor: 'pointer',
-              minHeight: 30,
-            }}
+            title={s.header.enTitle}
+            onClick={() => setLang('en')}
+            style={langBtn(lang === 'en')}
           >
             EN
           </button>
           <button
-            title="العربية — coming soon"
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: C.muted,
-              fontWeight: 600,
-              fontSize: 14,
-              padding: '5px 14px',
-              cursor: 'pointer',
-              minHeight: 30,
-            }}
+            title={s.header.arTitle}
+            onClick={() => setLang('ar')}
+            style={{ ...langBtn(lang === 'ar'), fontSize: 14 }}
           >
             ع
           </button>
@@ -140,7 +138,7 @@ export function Header({
               textTransform: 'uppercase',
             }}
           >
-            Step {stepNum} of 6 · {stepTitle}
+            {s.header.stepWord} {stepNum} {s.header.ofWord} 6 · {stepTitle}
           </div>
         </>
       )}

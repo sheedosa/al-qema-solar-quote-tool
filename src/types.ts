@@ -68,9 +68,11 @@ export type FormData = {
 }
 
 export type Estimate = {
+  /** Language-neutral display strings (numerals + en-dash). */
   kwp: string
   inv: string
   bat: string
-  daily: string
-  price: string
+  /** Raw values, formatted with localized units at render time. */
+  dailyKwh: number
+  priceLyd: number
 }
