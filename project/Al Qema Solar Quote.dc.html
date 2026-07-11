@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F8F9FA;font-family:'Cairo',system-ui,sans-serif;color:#4A4A4A;}
+*{box-sizing:border-box;}
+a{color:#BD202F;text-decoration:none;}
+a:hover{color:#9A1A26;text-decoration:underline;}
+input::placeholder,textarea::placeholder{color:#ADB5BD;font-family:'Cairo',sans-serif;}
+input,textarea,button{font-family:'Cairo',sans-serif;}
+input:focus,textarea:focus{outline:none;border-color:#BD202F !important;box-shadow:0 0 0 3px rgba(189,32,47,0.15);}
+@keyframes stepIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+input[type=range]{accent-color:#BD202F;}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#F8F9FA">
+
+  <!-- ===== Sticky header ===== -->
+  <header style="position:sticky;top:0;z-index:50;background:#FFFFFF;box-shadow:0 1px 0 #E5E7EB">
+    <div style="max-width:680px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 20px">
+      <sc-if value="{{ logoOk }}" hint-placeholder-val="{{ true }}">
+        <img src="https://alqema.ly/assets/img/logo.png" alt="Al Qema" onError="{{ onLogoError }}" style="height:32px;display:block">
+      </sc-if>
+      <sc-if value="{{ logoFailed }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:26px;height:26px;border-radius:6px;background:#BD202F;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px">Q</div>
+          <span style="font-weight:700;font-size:18px;color:#2D2D2D;letter-spacing:0.01em">Al Qema</span>
+        </div>
+      </sc-if>
+      <div style="display:flex;align-items:center;border:1px solid #E5E7EB;border-radius:999px;overflow:hidden">
+        <button style="border:none;background:#BD202F;color:#fff;font-weight:600;font-size:13px;padding:5px 14px;cursor:pointer;min-height:30px">EN</button>
+        <button title="العربية — coming soon" style="border:none;background:transparent;color:#6C757D;font-weight:600;font-size:14px;padding:5px 14px;cursor:pointer;min-height:30px">ع</button>
+      </div>
+    </div>
+    <sc-if value="{{ showProgress }}" hint-placeholder-val="{{ false }}">
+      <div style="height:4px;background:#E5E7EB;position:relative">
+        <div style="position:absolute;inset-block:0;inset-inline-start:0;background:#BD202F;border-radius:999px;transition:width 0.4s ease;width:{{ progressPct }}"></div>
+      </div>
+      <div style="max-width:680px;margin:0 auto;padding:6px 20px 8px;font-size:12px;font-weight:600;color:#6C757D;letter-spacing:0.06em;text-transform:uppercase">Step {{ stepNum }} of 6 · {{ stepTitle }}</div>
+    </sc-if>
+  </header>
+
+  <!-- ===== Main ===== -->
+  <main style="flex:1;width:100%;max-width:680px;margin:0 auto;padding:24px 20px 120px">
+
+  <!-- ============ SCREEN 0 — WELCOME ============ -->
+  <sc-if value="{{ s0 }}" hint-placeholder-val="{{ true }}">
+    <div style="animation:stepIn 0.35s ease;background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:40px 28px;margin-top:24px;text-align:center">
+      <div style="width:56px;height:56px;margin:0 auto 20px;border-radius:16px;background:#FBEAEC;display:flex;align-items:center;justify-content:center">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"></path></svg>
+      </div>
+      <h1 style="margin:0 0 12px;font-size:26px;font-weight:600;color:#2D2D2D;line-height:1.3;text-wrap:pretty">Get your solar system estimate</h1>
+      <p style="margin:0 auto 28px;max-width:440px;font-size:16px;font-weight:400;color:#6C757D;line-height:1.6;text-wrap:pretty">Answer a few quick questions about what you'd like to power. You'll get an instant estimate, and our team will follow up on WhatsApp with a tailored quote.</p>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-bottom:28px">
+        <div style="display:flex;align-items:center;gap:7px;background:#F8F9FA;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:500;color:#4A4A4A">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          ~3–4 minutes
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;background:#F8F9FA;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:500;color:#4A4A4A">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+          No technical knowledge needed
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;background:#F8F9FA;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:500;color:#4A4A4A">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          Free, no obligation
+        </div>
+      </div>
+      <button onClick="{{ onStart }}" style="width:100%;max-width:340px;min-height:52px;border:none;border-radius:12px;background:#BD202F;color:#fff;font-size:16px;font-weight:600;cursor:pointer;transition:background 0.15s" style-hover="background:#A81C2A">Start</button>
+      <p style="margin:24px 0 0;font-size:12.5px;font-weight:400;color:#ADB5BD">Trusted by 4,000+ customers · 350+ projects across Libya</p>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 1 — YOUR DETAILS ============ -->
+  <sc-if value="{{ s1 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease">
+      <div style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">About you</div>
+      <h2 style="margin:0 0 6px;font-size:24px;font-weight:600;color:#2D2D2D">Let's start with your details</h2>
+      <p style="margin:0 0 24px;font-size:13px;font-weight:400;color:#6C757D">Takes about 3–4 minutes. You don't need to know technical details — we'll help.</p>
+
+      <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:24px 20px;display:flex;flex-direction:column;gap:24px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label for="f-name" style="font-size:15px;font-weight:500">Full name <span style="color:#BD202F">*</span></label>
+          <input id="f-name" type="text" value="{{ d.name }}" onChange="{{ onName }}" placeholder="Your name" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label for="f-wa" style="font-size:15px;font-weight:500">WhatsApp number <span style="color:#BD202F">*</span></label>
+          <div style="display:flex;gap:8px">
+            <div style="display:flex;align-items:center;padding:0 12px;border:1px solid #E5E7EB;border-radius:12px;background:#F8F9FA;font-size:16px;font-weight:600;color:#6C757D">+218</div>
+            <input id="f-wa" type="tel" inputMode="tel" value="{{ d.whatsapp }}" onChange="{{ onWhatsapp }}" placeholder="91 123 4567" style="flex:1;min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+          </div>
+          <div style="font-size:13px;font-weight:400;color:#6C757D">We'll send your detailed quote here.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:15px;font-weight:500">Property type <span style="color:#BD202F">*</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
+            <sc-for list="{{ propertyOpts }}" as="o" hint-placeholder-count="6">
+              <button onClick="{{ o.onClick }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:14px;font-weight:600;cursor:pointer;min-height:44px">
+                <span style="color:{{ o.iconColor }};display:flex" dangerouslySetInnerHTML="{{ o.icon }}"></span>
+                {{ o.label }}
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ propertyIsOther }}" hint-placeholder-val="{{ false }}">
+            <input type="text" value="{{ d.propertyOther }}" onChange="{{ onPropertyOther }}" placeholder="Tell us what kind of place it is" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+          </sc-if>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label for="f-city" style="font-size:15px;font-weight:500">City / area <span style="color:#BD202F">*</span></label>
+          <input id="f-city" type="text" value="{{ d.city }}" onChange="{{ onCity }}" placeholder="e.g. Tripoli, Hay Al-Andalus" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 2 — POWER SITUATION ============ -->
+  <sc-if value="{{ s2 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease">
+      <div style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Your power use</div>
+      <h2 style="margin:0 0 24px;font-size:24px;font-weight:600;color:#2D2D2D">Your power situation</h2>
+
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">Current power supply</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ supplyOpts }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.onClick }}" style="flex:1 1 140px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">Average daily power cuts</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ outageOpts }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.onClick }}" style="flex:1 1 140px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">When do you use the most power?</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ peakOpts }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start;width:100%">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">At night, can you run only the essentials to save battery?</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ nightEcoOpts }}" as="o" hint-placeholder-count="2">
+              <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start;width:100%">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">How do you mostly run things?</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ operationOpts }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start;width:100%">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <p style="margin:0;font-size:13px;font-weight:400;color:#6C757D;text-align:center">This helps us size your battery correctly.</p>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 3 — COOLING ============ -->
+  <sc-if value="{{ s3 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease">
+      <div style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Cooling</div>
+      <h2 style="margin:0 0 6px;font-size:24px;font-weight:600;color:#2D2D2D">Air conditioning &amp; refrigeration</h2>
+      <p style="margin:0 0 24px;font-size:13px;font-weight:400;color:#6C757D;text-wrap:pretty">Air conditioners and fridges affect your system size the most — this is the important part.</p>
+
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="font-size:16px;font-weight:500;flex:1;min-width:180px">How many AC units do you want to run on solar?</div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <button onClick="{{ acCountDown }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:22px;font-weight:600;cursor:pointer;line-height:1">−</button>
+            <div style="width:52px;text-align:center;font-size:20px;font-weight:700;color:#2D2D2D">{{ acCount }}</div>
+            <button onClick="{{ acCountUp }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:22px;font-weight:600;cursor:pointer;line-height:1">+</button>
+          </div>
+        </div>
+
+        <sc-for list="{{ acRows }}" as="u" hint-placeholder-count="0">
+          <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:18px;position:relative">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="background:#FBEAEC;color:#BD202F;font-size:13px;font-weight:700;border-radius:999px;padding:3px 12px">AC {{ u.num }}</div>
+              </div>
+              <button onClick="{{ u.onRemove }}" title="Remove this AC" style="width:32px;height:32px;border:none;background:transparent;color:#ADB5BD;font-size:20px;cursor:pointer;border-radius:8px" style-hover="color:#BD202F;background:#FBEAEC">×</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:14px;font-weight:500">Location</label>
+              <input type="text" value="{{ u.location }}" onChange="{{ u.onLocation }}" placeholder="e.g. Living room" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:14px;font-weight:500">Type</div>
+              <div style="display:flex;gap:8px">
+                <sc-for list="{{ u.typeOpts }}" as="o" hint-placeholder-count="2">
+                  <button onClick="{{ o.onClick }}" style="flex:1;min-height:44px;padding:8px 14px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:14px;font-weight:600;cursor:pointer">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ u.showCapacity }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="font-size:14px;font-weight:500">Capacity</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input type="number" inputMode="numeric" value="{{ u.capValue }}" onChange="{{ u.onCap }}" placeholder="{{ u.capPlaceholder }}" style="flex:1;min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+                  <div style="display:flex;border:1px solid #E5E7EB;border-radius:999px;overflow:hidden">
+                    <sc-for list="{{ u.capUnitOpts }}" as="o" hint-placeholder-count="2">
+                      <button onClick="{{ o.onClick }}" style="border:none;min-height:44px;padding:8px 16px;background:{{ o.segBg }};color:{{ o.segColor }};font-size:13px;font-weight:600;cursor:pointer">{{ o.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+                <button onClick="{{ u.onDontKnow }}" style="align-self:flex-start;border:none;background:transparent;color:#BD202F;font-size:13.5px;font-weight:600;cursor:pointer;padding:4px 0;text-decoration:underline">I don't know</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ u.dontKnow }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#F8F9FA;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px">
+                <div style="font-size:13px;font-weight:500;color:#1E7E4F;display:flex;align-items:center;gap:6px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E7E4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                  No problem — we'll figure it out for you.
+                </div>
+                <input type="text" value="{{ u.model }}" onChange="{{ u.onModel }}" placeholder="Model (if you can see it, e.g. LG Dual Inverter)" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%;background:#FFFFFF">
+                <sc-if value="{{ u.noPhoto }}" hint-placeholder-val="{{ true }}">
+                  <label style="display:flex;flex-direction:column;align-items:center;gap:6px;border:1px dashed #E5E7EB;border-radius:12px;padding:16px;cursor:pointer;background:#FFFFFF">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C757D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    <span style="font-size:13.5px;font-weight:600;color:#4A4A4A">Add photo of the sticker</span>
+                    <span style="font-size:12px;font-weight:400;color:#6C757D;text-align:center">Snap the label on the indoor or outdoor unit — we'll read it.</span>
+                    <input type="file" accept="image/*" capture="environment" onChange="{{ u.onFile }}" style="display:none">
+                  </label>
+                </sc-if>
+                <sc-if value="{{ u.hasPhoto }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:12px;border:1px solid #E5E7EB;border-radius:12px;padding:10px;background:#FFFFFF">
+                    <img src="{{ u.photo }}" alt="AC sticker" style="width:56px;height:56px;object-fit:cover;border-radius:8px">
+                    <span style="flex:1;font-size:13px;font-weight:500;color:#1E7E4F">Photo added ✓</span>
+                    <button onClick="{{ u.onPhotoRemove }}" style="border:none;background:transparent;color:#ADB5BD;font-size:18px;cursor:pointer">×</button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:14px;font-weight:500">Inverter type AC?</div>
+              <div style="display:flex;gap:8px">
+                <sc-for list="{{ u.invOpts }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.onClick }}" style="flex:1;min-height:44px;padding:8px 10px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:14px;font-weight:600;cursor:pointer">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <div style="font-size:14px;font-weight:500">Hours per day</div>
+                <div style="font-size:15px;font-weight:700;color:#BD202F">{{ u.hours }} h</div>
+              </div>
+              <input type="range" min="0" max="24" step="1" value="{{ u.hours }}" onChange="{{ u.onHours }}" style="width:100%;height:32px">
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div style="font-size:14px;font-weight:500">Run at night?</div>
+              <button onClick="{{ u.nightToggle.onClick }}" style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;background:{{ u.nightToggle.bg }};display:flex;align-items:center;justify-content:{{ u.nightToggle.justify }};padding:3px;transition:background 0.15s">
+                <span style="width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,0.25);display:block"></span>
+              </button>
+            </div>
+          </div>
+        </sc-for>
+
+        <!-- Fridges & freezers -->
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:18px">
+          <div style="font-size:16px;font-weight:600;color:#2D2D2D">Fridges &amp; freezers</div>
+          <sc-for list="{{ coldRows }}" as="r" hint-placeholder-count="2">
+            <div style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div style="font-size:15px;font-weight:600">{{ r.label }}</div>
+                <button onClick="{{ r.toggle.onClick }}" style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;background:{{ r.toggle.bg }};display:flex;align-items:center;justify-content:{{ r.toggle.justify }};padding:3px;transition:background 0.15s">
+                  <span style="width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,0.25);display:block"></span>
+                </button>
+              </div>
+              <sc-if value="{{ r.on }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div style="font-size:14px;font-weight:500">How many?</div>
+                    <div style="display:flex;align-items:center;gap:4px">
+                      <button onClick="{{ r.qtyDown }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">−</button>
+                      <div style="width:44px;text-align:center;font-size:18px;font-weight:700;color:#2D2D2D">{{ r.qty }}</div>
+                      <button onClick="{{ r.qtyUp }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">+</button>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <label style="font-size:14px;font-weight:500">Capacity in liters <span style="color:#6C757D;font-weight:400;font-size:12.5px">(optional — leave blank if unsure)</span></label>
+                    <input type="number" inputMode="numeric" value="{{ r.capacityL }}" onChange="{{ r.onCapacity }}" placeholder="e.g. 400" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="font-size:14px;font-weight:500">Condition</div>
+                    <div style="display:flex;gap:8px">
+                      <sc-for list="{{ r.condOpts }}" as="o" hint-placeholder-count="2">
+                        <button onClick="{{ o.onClick }}" style="flex:1;min-height:44px;padding:8px 14px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:14px;font-weight:600;cursor:pointer">{{ o.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="font-size:14px;font-weight:500">Always running?</div>
+                    <button onClick="{{ r.alwaysToggle.onClick }}" style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;background:{{ r.alwaysToggle.bg }};display:flex;align-items:center;justify-content:{{ r.alwaysToggle.justify }};padding:3px;transition:background 0.15s">
+                      <span style="width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,0.25);display:block"></span>
+                    </button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 4 — LIGHTING & APPLIANCES ============ -->
+  <sc-if value="{{ s4 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease">
+      <div style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">What else to power</div>
+      <h2 style="margin:0 0 24px;font-size:24px;font-weight:600;color:#2D2D2D">Lighting &amp; appliances</h2>
+
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <!-- Lighting -->
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:16px;font-weight:600;color:#2D2D2D">Lighting</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:14px;font-weight:500">Bulb type</div>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ bulbOpts }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.onClick }}" style="flex:1;min-height:44px;padding:8px 12px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:14px;font-weight:600;cursor:pointer">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="font-size:14px;font-weight:500">Number of bulbs</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <button onClick="{{ bulbsDown }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">−</button>
+              <div style="width:44px;text-align:center;font-size:18px;font-weight:700;color:#2D2D2D">{{ lt.count }}</div>
+              <button onClick="{{ bulbsUp }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">+</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:14px;font-weight:500">Watts per bulb <span style="color:#6C757D;font-weight:400;font-size:12.5px">(optional)</span></label>
+            <input type="number" inputMode="numeric" value="{{ lt.watts }}" onChange="{{ onBulbWatts }}" placeholder="Not sure" style="min-height:48px;padding:10px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+            <div style="font-size:13px;font-weight:400;color:#6C757D">Leave blank if unsure — LED is usually 5–15W.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="font-size:14px;font-weight:500">Hours lit at night</div>
+              <div style="font-size:15px;font-weight:700;color:#BD202F">{{ lt.nightHours }} h</div>
+            </div>
+            <input type="range" min="0" max="12" step="1" value="{{ lt.nightHours }}" onChange="{{ onNightHours }}" style="width:100%;height:32px">
+          </div>
+        </div>
+
+        <!-- Appliance builder -->
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:#2D2D2D">Appliances</div>
+            <div style="font-size:13px;font-weight:400;color:#6C757D">Tap to add what you'd like to run. Don't worry about watts — we'll estimate.</div>
+          </div>
+
+          <sc-for list="{{ appRows }}" as="a" hint-placeholder-count="0">
+            <div style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <sc-if value="{{ a.isCustom }}" hint-placeholder-val="{{ false }}">
+                  <input type="text" value="{{ a.name }}" onChange="{{ a.onName }}" placeholder="Device name" style="flex:1;min-height:44px;padding:8px 12px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:600;color:#2D2D2D;width:100%">
+                </sc-if>
+                <sc-if value="{{ a.notCustom }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size:15px;font-weight:600;color:#2D2D2D">{{ a.name }}</div>
+                </sc-if>
+                <button onClick="{{ a.onRemove }}" title="Remove" style="width:32px;height:32px;border:none;background:transparent;color:#ADB5BD;font-size:20px;cursor:pointer;border-radius:8px;flex:none" style-hover="color:#BD202F;background:#FBEAEC">×</button>
+              </div>
+              <sc-if value="{{ a.isPump }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="font-size:13.5px;font-weight:500">Pump size</div>
+                  <div style="display:flex;gap:8px">
+                    <sc-for list="{{ a.hpOpts }}" as="o" hint-placeholder-count="4">
+                      <button onClick="{{ o.onClick }}" style="flex:1;min-height:44px;padding:6px 8px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:13.5px;font-weight:600;cursor:pointer">{{ o.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div style="font-size:13.5px;font-weight:500">Quantity</div>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button onClick="{{ a.qtyDown }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">−</button>
+                  <div style="width:40px;text-align:center;font-size:17px;font-weight:700;color:#2D2D2D">{{ a.qty }}</div>
+                  <button onClick="{{ a.qtyUp }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">+</button>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <div style="font-size:13.5px;font-weight:500">Hours per day</div>
+                  <div style="font-size:14px;font-weight:700;color:#BD202F">{{ a.hours }} h</div>
+                </div>
+                <input type="range" min="0" max="24" step="1" value="{{ a.hours }}" onChange="{{ a.onHours }}" style="width:100%;height:32px">
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div style="font-size:13.5px;font-weight:500">Run at night?</div>
+                <button onClick="{{ a.nightToggle.onClick }}" style="width:52px;height:30px;border-radius:999px;border:none;cursor:pointer;background:{{ a.nightToggle.bg }};display:flex;align-items:center;justify-content:{{ a.nightToggle.justify }};padding:3px;transition:background 0.15s">
+                  <span style="width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,0.25);display:block"></span>
+                </button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <label style="font-size:13.5px;font-weight:500">Watts <span style="color:#6C757D;font-weight:400;font-size:12px">(optional)</span></label>
+                <input type="number" inputMode="numeric" value="{{ a.watts }}" onChange="{{ a.onWatts }}" placeholder="We'll estimate" style="min-height:44px;padding:8px 12px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%">
+              </div>
+            </div>
+          </sc-for>
+
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ appChips }}" as="c" hint-placeholder-count="12">
+              <button onClick="{{ c.onClick }}" style="display:flex;align-items:center;gap:6px;min-height:40px;padding:8px 14px;border-radius:999px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:13.5px;font-weight:600;cursor:pointer" style-hover="border-color:#BD202F;color:#BD202F;background:#FBEAEC">
+                <span style="color:#BD202F;font-weight:700">+</span>{{ c.label }}
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- Heavy duty -->
+        <div style="background:#F8F9FA;border:1px solid #E5E7EB;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6C757D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path><path d="M12 9v4M12 17h.01"></path></svg>
+            <div style="font-size:13.5px;font-weight:400;color:#6C757D;line-height:1.5;text-wrap:pretty">These draw a lot of power and need a special setup. Tick any you'd still like to run:</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ hdOpts }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;gap:12px;min-height:48px;padding:10px 14px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};cursor:pointer;text-align:start;width:100%">
+                <span style="width:22px;height:22px;border-radius:6px;border:1.5px solid {{ o.boxBorder }};background:{{ o.boxBg }};display:flex;align-items:center;justify-content:center;flex:none">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+                </span>
+                <span style="font-size:14px;font-weight:500;color:#4A4A4A">{{ o.label }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 5 — PREFERENCES ============ -->
+  <sc-if value="{{ s5 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease">
+      <div style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Your preferences</div>
+      <h2 style="margin:0 0 24px;font-size:24px;font-weight:600;color:#2D2D2D">System preferences</h2>
+
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">System type</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ systemOpts }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start;width:100%">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">Priority during a power cut</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ priorityOpts }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start;width:100%">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ showPriorityAc }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#F8F9FA;border-radius:12px;padding:12px 14px;margin-top:4px">
+              <div style="font-size:14px;font-weight:500">How many ACs during a cut?</div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button onClick="{{ prioAcDown }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">−</button>
+                <div style="width:40px;text-align:center;font-size:17px;font-weight:700;color:#2D2D2D">{{ d.priorityAcCount }}</div>
+                <button onClick="{{ prioAcUp }}" style="width:44px;height:44px;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:#4A4A4A;font-size:20px;font-weight:600;cursor:pointer;line-height:1">+</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">Roof space for panels</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ roofOpts }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.onClick }}" style="flex:1 1 140px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">Any shade on the roof (buildings/trees)?</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ shadeOpts }}" as="o" hint-placeholder-count="2">
+              <button onClick="{{ o.onClick }}" style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:10px 16px;border-radius:12px;border:1.5px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:15px;font-weight:600;cursor:pointer;text-align:start">
+                {{ o.label }}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BD202F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ o.checkOp }}"><path d="M20 6L9 17l-5-5"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:16px;font-weight:500">Photos <span style="color:#6C757D;font-weight:400;font-size:13px">(optional, speeds up your quote)</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+            <sc-for list="{{ photoTiles }}" as="t" hint-placeholder-count="4">
+              <div>
+                <sc-if value="{{ t.empty }}" hint-placeholder-val="{{ true }}">
+                  <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px dashed #E5E7EB;border-radius:12px;padding:18px 10px;cursor:pointer;min-height:110px;text-align:center" style-hover="border-color:#BD202F">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C757D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    <span style="font-size:13px;font-weight:600;color:#4A4A4A;line-height:1.35">{{ t.label }}</span>
+                    <input type="file" accept="image/*" capture="environment" onChange="{{ t.onFile }}" style="display:none">
+                  </label>
+                </sc-if>
+                <sc-if value="{{ t.has }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:relative;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;min-height:110px">
+                    <img src="{{ t.thumb }}" alt="{{ t.label }}" style="width:100%;height:110px;object-fit:cover;display:block">
+                    <button onClick="{{ t.onRemove }}" style="position:absolute;top:6px;inset-inline-end:6px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(45,45,45,0.75);color:#fff;font-size:15px;cursor:pointer;line-height:1">×</button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size:13px;font-weight:400;color:#6C757D">Optional, but photos help us quote faster and more accurately.</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 6 — NOTES & REVIEW ============ -->
+  <sc-if value="{{ s6 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease">
+      <div style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Almost done</div>
+      <h2 style="margin:0 0 24px;font-size:24px;font-weight:600;color:#2D2D2D">Review &amp; send</h2>
+
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px;display:flex;flex-direction:column;gap:8px">
+          <label for="f-notes" style="font-size:15px;font-weight:500">Anything else we should know? <span style="color:#6C757D;font-weight:400;font-size:13px">(optional)</span></label>
+          <textarea id="f-notes" rows="3" value="{{ d.notes }}" onChange="{{ onNotes }}" placeholder="Future expansion, number of rooms, working hours, etc." style="padding:12px 14px;border:1px solid #E5E7EB;border-radius:12px;font-size:16px;font-weight:500;color:#4A4A4A;width:100%;resize:vertical;min-height:88px"></textarea>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ reviewGroups }}" as="g" hint-placeholder-count="5">
+            <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:18px 20px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="font-size:14px;font-weight:600;color:#2D2D2D">{{ g.title }}</div>
+                <button onClick="{{ g.onEdit }}" style="border:none;background:transparent;color:#BD202F;font-size:13.5px;font-weight:600;cursor:pointer;padding:6px 8px;text-decoration:underline">Edit</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{ g.rows }}" as="row" hint-placeholder-count="3">
+                  <div style="display:flex;justify-content:space-between;gap:16px;font-size:13.5px;line-height:1.5">
+                    <span style="color:#6C757D;font-weight:400;flex:none">{{ row.k }}</span>
+                    <span style="color:#4A4A4A;font-weight:600;text-align:end">{{ row.v }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SCREEN 7 — RESULT ============ -->
+  <sc-if value="{{ s7 }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stepIn 0.35s ease;display:flex;flex-direction:column;gap:24px;padding-top:8px">
+      <div style="text-align:center">
+        <div style="width:56px;height:56px;margin:0 auto 16px;border-radius:50%;background:#E7F3ED;display:flex;align-items:center;justify-content:center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E7E4F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+        </div>
+        <h2 style="margin:0 0 6px;font-size:25px;font-weight:600;color:#2D2D2D;line-height:1.3;text-wrap:pretty">Here's your recommended system, {{ firstName }}</h2>
+        <p style="margin:0;font-size:14px;font-weight:400;color:#6C757D">Based on what you told us — our engineer will confirm the details.</p>
+      </div>
+
+      <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:24px 20px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px">
+          <div style="background:#F8F9FA;border-radius:12px;padding:18px 14px;text-align:center">
+            <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Solar panels</div>
+            <div style="font-size:23px;font-weight:700;color:#BD202F;line-height:1.2">{{ est.kwp }}</div>
+            <div style="font-size:12.5px;font-weight:500;color:#6C757D">kWp array</div>
+          </div>
+          <div style="background:#F8F9FA;border-radius:12px;padding:18px 14px;text-align:center">
+            <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Inverter</div>
+            <div style="font-size:23px;font-weight:700;color:#BD202F;line-height:1.2">{{ est.inv }}</div>
+            <div style="font-size:12.5px;font-weight:500;color:#6C757D">kW hybrid</div>
+          </div>
+          <div style="background:#F8F9FA;border-radius:12px;padding:18px 14px;text-align:center">
+            <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6C757D;margin-bottom:6px">Battery storage</div>
+            <div style="font-size:23px;font-weight:700;color:#BD202F;line-height:1.2">{{ est.bat }}</div>
+            <div style="font-size:12.5px;font-weight:500;color:#6C757D">kWh</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:14px;font-size:13.5px;font-weight:500;color:#6C757D">Estimated daily energy need: <span style="color:#4A4A4A;font-weight:700">{{ est.daily }}</span></div>
+      </div>
+
+      <sc-if value="{{ priceVisible }}" hint-placeholder-val="{{ true }}">
+        <div style="background:#2D2D2D;border-radius:12px;padding:24px 20px;text-align:center">
+          <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#ADB5BD;margin-bottom:6px">Indicative price</div>
+          <div style="font-size:30px;font-weight:700;color:#FFFFFF;line-height:1.2">{{ est.price }}</div>
+          <div style="font-size:13px;font-weight:400;color:#ADB5BD;margin-top:6px">Starting estimate — confirmed by our engineer after a quick review.</div>
+        </div>
+      </sc-if>
+
+      <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);padding:20px">
+        <div style="font-size:14px;font-weight:600;color:#2D2D2D;margin-bottom:14px">What happens next</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:26px;height:26px;border-radius:50%;background:#FBEAEC;color:#BD202F;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">1</div>
+            <div style="font-size:14px;font-weight:500;line-height:1.5;padding-top:2px">We review your details</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:26px;height:26px;border-radius:50%;background:#FBEAEC;color:#BD202F;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">2</div>
+            <div style="font-size:14px;font-weight:500;line-height:1.5;padding-top:2px">We confirm sizing &amp; price on WhatsApp</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="width:26px;height:26px;border-radius:50%;background:#FBEAEC;color:#BD202F;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">3</div>
+            <div style="font-size:14px;font-weight:500;line-height:1.5;padding-top:2px">We schedule installation</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border-radius:12px;background:#BD202F;color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;transition:background 0.15s" style-hover="background:#A81C2A;color:#FFFFFF;text-decoration:none">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5 13.9c-.2.6-1.2 1.1-1.7 1.2-.4 0-1 .1-1.6-.1a13 13 0 01-1.5-.5c-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1.1-1.4-1.1-2.7s.7-1.9.9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.4l.8 2c.1.1.1.3 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1.1 2.2 1.4 2.5 1.5.3.1.5.1.7-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.1.1.6-.3 1.6z"></path></svg>
+          Get my detailed quote on WhatsApp
+        </a>
+        <button onClick="{{ onStartOver }}" style="min-height:48px;border-radius:12px;border:1px solid #E5E7EB;background:transparent;color:#4A4A4A;font-size:15px;font-weight:600;cursor:pointer">Start over</button>
+      </div>
+
+      <div style="text-align:center;display:flex;flex-direction:column;gap:8px;padding-bottom:16px">
+        <div style="font-size:12.5px;font-weight:500;color:#6C757D">Trusted by 4,000+ customers · Partners: Huawei · Sungrow · Trina</div>
+        <div style="font-size:12px;font-weight:400;color:#ADB5BD;max-width:420px;margin:0 auto;line-height:1.5;text-wrap:pretty">This is an initial estimate based on your inputs and may change after a site assessment.</div>
+      </div>
+    </div>
+  </sc-if>
+
+  </main>
+
+  <!-- ===== Sticky footer nav ===== -->
+  <sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
+    <div style="position:sticky;bottom:0;z-index:50;background:#FFFFFF;border-top:1px solid #E5E7EB;padding:12px 20px calc(12px + env(safe-area-inset-bottom))">
+      <div style="max-width:680px;margin:0 auto;display:flex;gap:12px;justify-content:space-between">
+        <sc-if value="{{ backVisible }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ onBack }}" style="min-height:48px;padding:0 24px;border-radius:12px;border:1px solid #E5E7EB;background:transparent;color:#4A4A4A;font-size:16px;font-weight:600;cursor:pointer">Back</button>
+        </sc-if>
+        <sc-if value="{{ backHidden }}" hint-placeholder-val="{{ true }}">
+          <span></span>
+        </sc-if>
+        <button onClick="{{ onContinue }}" disabled="{{ contDisabled }}" style="flex:1;max-width:320px;min-height:48px;padding:0 24px;border-radius:12px;border:none;background:#BD202F;color:#FFFFFF;font-size:16px;font-weight:600;cursor:pointer;opacity:{{ contOpacity }};transition:background 0.15s,opacity 0.2s" style-hover="background:#A81C2A">{{ contLabel }}</button>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;jumpToStep&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;min&quot;:0,&quot;max&quot;:7,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;showPrice&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Result screen&quot;},&quot;waNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;+218911139113&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Result screen&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      step: 0,
+      logoFailed: false,
+      data: {
+        name: '', whatsapp: '', propertyType: '', propertyOther: '', city: '',
+        supply: '', outageHours: '', peakTime: '', nightEconomy: '', operation: '',
+        acUnits: [],
+        fridge: { on: true, qty: 1, capacityL: '', condition: 'new', alwaysOn: true },
+        freezer: { on: false, qty: 1, capacityL: '', condition: 'new', alwaysOn: true },
+        lighting: { type: '', count: 10, watts: '', nightHours: 5 },
+        appliances: [],
+        heavyDuty: [],
+        systemType: 'recommend', priority: '', priorityAcCount: 1, roofSpace: '', roofShade: '',
+        photos: { panel: null, meter: null, roof: null, stickers: null },
+        notes: ''
+      }
+    };
+    this._appId = 1;
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps && this.props.jumpToStep != null && this.props.jumpToStep !== prevProps.jumpToStep) {
+      this.setState({ step: Math.max(0, Math.min(7, Math.round(this.props.jumpToStep))) });
+    }
+    if (this._lastStep !== this.state.step) {
+      this._lastStep = this.state.step;
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { window.scrollTo(0, 0); }
+      const m = document.querySelector('main'); if (m) m.scrollTop = 0;
+    }
+  }
+
+  setD(patch) { this.setState(s => ({ data: Object.assign({}, s.data, patch) })); }
+
+  seg(opts, cur, key) {
+    return opts.map(o => {
+      const val = typeof o === 'string' ? o : o.val;
+      const label = typeof o === 'string' ? o : o.label;
+      const sel = cur === val;
+      return {
+        label, sel,
+        bg: sel ? '#FBEAEC' : '#FFFFFF',
+        border: sel ? '#BD202F' : '#E5E7EB',
+        color: sel ? '#BD202F' : '#4A4A4A',
+        checkOp: sel ? 1 : 0,
+        onClick: () => this.setD({ [key]: val })
+      };
+    });
+  }
+
+  mkToggle(on, cb) {
+    return { on, bg: on ? '#BD202F' : '#CBD2D9', justify: on ? 'flex-end' : 'flex-start', onClick: cb };
+  }
+
+  mkAc() { return { location: '', type: '', capValue: '', capUnit: 'btu', dontKnow: false, model: '', photo: null, inverter: '', hours: 6, night: true }; }
+
+  setAcCount(n) {
+    n = Math.max(0, Math.min(10, n));
+    this.setState(s => {
+      let arr = s.data.acUnits.slice();
+      while (arr.length < n) arr.push(this.mkAc());
+      arr = arr.slice(0, n);
+      return { data: Object.assign({}, s.data, { acUnits: arr }) };
+    });
+  }
+
+  setAc(i, patch) {
+    this.setState(s => {
+      const arr = s.data.acUnits.map((u, j) => j === i ? Object.assign({}, u, patch) : u);
+      return { data: Object.assign({}, s.data, { acUnits: arr }) };
+    });
+  }
+
+  removeAc(i) {
+    this.setState(s => {
+      const arr = s.data.acUnits.filter((u, j) => j !== i);
+      return { data: Object.assign({}, s.data, { acUnits: arr }) };
+    });
+  }
+
+  setCold(key, patch) {
+    this.setState(s => ({ data: Object.assign({}, s.data, { [key]: Object.assign({}, s.data[key], patch) }) }));
+  }
+
+  setLight(patch) {
+    this.setState(s => ({ data: Object.assign({}, s.data, { lighting: Object.assign({}, s.data.lighting, patch) }) }));
+  }
+
+  presets() {
+    return [
+      { name: 'Router / Internet', w: 15 }, { name: 'TV', w: 100 }, { name: 'Phone / Laptop charger', w: 60 },
+      { name: 'Fans', w: 70 }, { name: 'Water pump', w: 750, pump: true }, { name: 'Water heater', w: 1500 },
+      { name: 'Washing machine', w: 500 }, { name: 'Dryer', w: 2000 }, { name: 'Oven / Microwave', w: 1500 },
+      { name: 'Coffee machine / Kettle', w: 1200 }, { name: 'Security cameras / NVR', w: 60 }, { name: 'Server / Network', w: 300 }
+    ];
+  }
+
+  addAppliance(p) {
+    const row = { id: this._appId++, name: p ? p.name : '', custom: !p, pump: !!(p && p.pump), hp: '1', qty: 1, hours: p && p.pump ? 1 : 4, night: false, watts: '', defW: p ? p.w : 100 };
+    this.setState(s => ({ data: Object.assign({}, s.data, { appliances: s.data.appliances.concat([row]) }) }));
+  }
+
+  setApp(id, patch) {
+    this.setState(s => ({ data: Object.assign({}, s.data, { appliances: s.data.appliances.map(a => a.id === id ? Object.assign({}, a, patch) : a) }) }));
+  }
+
+  removeApp(id) {
+    this.setState(s => ({ data: Object.assign({}, s.data, { appliances: s.data.appliances.filter(a => a.id !== id) }) }));
+  }
+
+  fileUrl(e, cb) {
+    const f = e.target.files && e.target.files[0];
+    if (f) cb(URL.createObjectURL(f));
+  }
+
+  estimate() {
+    const d = this.state.data;
+    let daily = 0, night = 0, peak = 0;
+    d.acUnits.forEach(u => {
+      let tons = 1.25;
+      const v = parseFloat(u.capValue);
+      if (!u.dontKnow && v > 0) tons = u.capUnit === 'btu' ? v / 12000 : v;
+      let w = tons * 1200;
+      if (u.inverter === 'yes') w *= 0.75;
+      peak += w;
+      daily += w * (u.hours || 0) / 1000;
+      if (u.night) night += w * Math.min(u.hours || 0, 8) / 1000 * 0.6;
+    });
+    if (d.fridge.on) { daily += 1.2 * d.fridge.qty * (d.fridge.condition === 'old' ? 1.5 : 1); night += 0.5 * d.fridge.qty; peak += 200 * d.fridge.qty; }
+    if (d.freezer.on) { daily += 1.5 * d.freezer.qty * (d.freezer.condition === 'old' ? 1.5 : 1); night += 0.6 * d.freezer.qty; peak += 300 * d.freezer.qty; }
+    const bw = parseFloat(d.lighting.watts) || (d.lighting.type === 'regular' ? 60 : d.lighting.type === 'mixed' ? 30 : 10);
+    const lkwh = d.lighting.count * bw * (d.lighting.nightHours || 0) / 1000;
+    daily += lkwh; night += lkwh; peak += d.lighting.count * bw;
+    d.appliances.forEach(a => {
+      let w = parseFloat(a.watts) || a.defW;
+      if (a.pump) w = (parseFloat(a.hp) || 1) * 750;
+      const kwh = w * a.qty * (a.hours || 0) / 1000;
+      daily += kwh; peak += w * a.qty;
+      if (a.night) night += kwh * 0.5;
+    });
+    daily = Math.max(daily, 2);
+    night = Math.max(Math.min(night, daily), 1);
+    if (d.nightEconomy === 'yes') night *= 0.7;
+    const kwpLo = Math.max(1, Math.round(daily / 5.5 * 2) / 2);
+    const kwpHi = Math.max(kwpLo + 0.5, Math.round(daily / 4.2 * 2) / 2);
+    const sizes = [3, 5, 6, 8, 10, 12, 15, 20, 25, 30];
+    const need = peak / 1000 * 0.75;
+    const inv = sizes.find(s => s >= need) || 30;
+    const batLo = Math.max(5, Math.round(night * 1.25));
+    const batHi = Math.max(batLo + 2, Math.round(night * 1.8));
+    const kwpMid = (kwpLo + kwpHi) / 2;
+    const price = Math.round((kwpMid * 3800 + ((batLo + batHi) / 2) * 1500 + inv * 800) / 500) * 500;
+    return {
+      kwp: kwpLo.toFixed(1) + '\u2013' + kwpHi.toFixed(1),
+      inv: String(inv),
+      bat: batLo + '\u2013' + batHi,
+      daily: '~' + Math.round(daily) + ' kWh/day',
+      price: 'From ~' + price.toLocaleString('en-US') + ' LYD'
+    };
+  }
+
+  canContinue() {
+    const d = this.state.data, step = this.state.step;
+    if (step === 1) {
+      const digits = d.whatsapp.replace(/\D/g, '');
+      return d.name.trim().length >= 2 && digits.length >= 8 && d.propertyType !== '' &&
+        (d.propertyType !== 'Other' || d.propertyOther.trim() !== '') && d.city.trim() !== '';
+    }
+    if (step === 2) return !!(d.supply && d.outageHours && d.peakTime && d.nightEconomy && d.operation);
+    return true;
+  }
+
+  icon(name) {
+    const p = {
+      home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+      office: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/><path d="M10 21v-3h4v3"/>',
+      shop: '<path d="M4 8l1-4h14l1 4"/><path d="M4 8c0 1.5 1 2.5 2.5 2.5S9 9.5 9 8c0 1.5 1 2.5 2.5 2.5S14 9.5 14 8c0 1.5 1 2.5 2.5 2.5S19 9.5 19 8"/><path d="M5 10.5V20h14v-9.5"/><path d="M9 20v-5h6v5"/>',
+      clinic: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M12 9v6M9 12h6"/>',
+      workshop: '<path d="M14.7 6.3a4 4 0 00-5.6 5.6L4 17v3h3l5.1-5.1a4 4 0 005.6-5.6l-2.4 2.4-2.3-2.3z"/>',
+      other: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 114 2c-.8.6-1.5 1-1.5 2M12 17h.01"/>'
+    };
+    return { __html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p[name] + '</svg>' };
+  }
+
+  renderVals() {
+    const s = this.state, d = s.data, step = s.step;
+    const titles = ['', 'About you', 'Power use', 'Cooling', 'Appliances', 'Preferences', 'Review'];
+
+    const propertyIcons = { 'Home': 'home', 'Office / Company': 'office', 'Shop': 'shop', 'Clinic': 'clinic', 'Workshop': 'workshop', 'Other': 'other' };
+    const propertyOpts = this.seg(Object.keys(propertyIcons), d.propertyType, 'propertyType').map(o => Object.assign(o, {
+      icon: this.icon(propertyIcons[o.label]),
+      iconColor: o.sel ? '#BD202F' : '#6C757D'
+    }));
+
+    const acRows = d.acUnits.map((u, i) => {
+      const capUnitOpts = ['btu', 'ton'].map(unit => ({
+        label: unit.toUpperCase(),
+        segBg: u.capUnit === unit ? '#BD202F' : '#FFFFFF',
+        segColor: u.capUnit === unit ? '#FFFFFF' : '#6C757D',
+        onClick: () => this.setAc(i, { capUnit: unit })
+      }));
+      return {
+        num: i + 1,
+        location: u.location, capValue: u.capValue, model: u.model, hours: u.hours,
+        dontKnow: u.dontKnow, showCapacity: !u.dontKnow,
+        hasPhoto: !!u.photo, noPhoto: !u.photo, photo: u.photo,
+        capPlaceholder: u.capUnit === 'btu' ? 'e.g. 18000' : 'e.g. 1.5',
+        typeOpts: this.seg(['Split', 'Window'], u.type, '_').map((o, k) => Object.assign(o, { onClick: () => this.setAc(i, { type: ['Split', 'Window'][k] }) })),
+        invOpts: [{ label: 'Yes', val: 'yes' }, { label: 'No', val: 'no' }, { label: 'Not sure', val: 'unsure' }].map(x => {
+          const sel = u.inverter === x.val;
+          return { label: x.label, bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setAc(i, { inverter: x.val }) };
+        }),
+        capUnitOpts,
+        nightToggle: this.mkToggle(u.night, () => this.setAc(i, { night: !u.night })),
+        onLocation: e => this.setAc(i, { location: e.target.value }),
+        onCap: e => this.setAc(i, { capValue: e.target.value }),
+        onModel: e => this.setAc(i, { model: e.target.value }),
+        onHours: e => this.setAc(i, { hours: parseInt(e.target.value, 10) || 0 }),
+        onDontKnow: () => this.setAc(i, { dontKnow: true, capValue: '' }),
+        onFile: e => this.fileUrl(e, url => this.setAc(i, { photo: url })),
+        onPhotoRemove: () => this.setAc(i, { photo: null }),
+        onRemove: () => this.removeAc(i)
+      };
+    });
+
+    const coldRows = ['fridge', 'freezer'].map(key => {
+      const r = d[key];
+      return {
+        label: key === 'fridge' ? 'Fridge' : 'Freezer',
+        on: r.on, qty: r.qty, capacityL: r.capacityL,
+        toggle: this.mkToggle(r.on, () => this.setCold(key, { on: !r.on })),
+        alwaysToggle: this.mkToggle(r.alwaysOn, () => this.setCold(key, { alwaysOn: !r.alwaysOn })),
+        qtyUp: () => this.setCold(key, { qty: Math.min(10, r.qty + 1) }),
+        qtyDown: () => this.setCold(key, { qty: Math.max(1, r.qty - 1) }),
+        onCapacity: e => this.setCold(key, { capacityL: e.target.value }),
+        condOpts: ['New', 'Old'].map(c => {
+          const sel = r.condition === c.toLowerCase();
+          return { label: c, bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setCold(key, { condition: c.toLowerCase() }) };
+        })
+      };
+    });
+
+    const lt = d.lighting;
+    const addedNames = d.appliances.map(a => a.name);
+    const appChips = this.presets().filter(p => addedNames.indexOf(p.name) === -1)
+      .map(p => ({ label: p.name, onClick: () => this.addAppliance(p) }))
+      .concat([{ label: 'Add other', onClick: () => this.addAppliance(null) }]);
+
+    const appRows = d.appliances.map(a => ({
+      name: a.name, qty: a.qty, hours: a.hours, watts: a.watts,
+      isCustom: a.custom, notCustom: !a.custom, isPump: a.pump,
+      hpOpts: ['0.5', '1', '1.5', '2'].map(hp => {
+        const sel = a.hp === hp;
+        return { label: hp + ' hp', bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setApp(a.id, { hp }) };
+      }),
+      nightToggle: this.mkToggle(a.night, () => this.setApp(a.id, { night: !a.night })),
+      onName: e => this.setApp(a.id, { name: e.target.value }),
+      onWatts: e => this.setApp(a.id, { watts: e.target.value }),
+      onHours: e => this.setApp(a.id, { hours: parseInt(e.target.value, 10) || 0 }),
+      qtyUp: () => this.setApp(a.id, { qty: Math.min(20, a.qty + 1) }),
+      qtyDown: () => this.setApp(a.id, { qty: Math.max(1, a.qty - 1) }),
+      onRemove: () => this.removeApp(a.id)
+    }));
+
+    const hdList = [
+      { val: 'electric_oven', label: 'Electric oven / air fryer' },
+      { val: 'instant_heater', label: 'High-power heater (instant water heater)' },
+      { val: 'multi_ac_battery', label: 'Several ACs on battery' },
+      { val: 'industrial', label: 'Welding / compressor / lathe (industrial)' }
+    ];
+    const hdOpts = hdList.map(h => {
+      const sel = d.heavyDuty.indexOf(h.val) !== -1;
+      return {
+        label: h.label, checkOp: sel ? 1 : 0,
+        bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB',
+        boxBg: sel ? '#BD202F' : '#FFFFFF', boxBorder: sel ? '#BD202F' : '#CBD2D9',
+        onClick: () => this.setD({ heavyDuty: sel ? d.heavyDuty.filter(x => x !== h.val) : d.heavyDuty.concat([h.val]) })
+      };
+    });
+
+    const systemOpts = [
+      { label: 'Hybrid', val: 'hybrid' }, { label: 'Off-grid', val: 'offgrid' },
+      { label: 'On-grid (if available)', val: 'ongrid' }, { label: 'Not sure — recommend for me', val: 'recommend' }
+    ].map(x => {
+      const sel = d.systemType === x.val;
+      return { label: x.label, checkOp: sel ? 1 : 0, bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setD({ systemType: x.val }) };
+    });
+
+    const priorityOpts = [
+      { label: 'Essentials only', val: 'essentials' }, { label: 'Essentials + AC', val: 'essentials_ac' },
+      { label: 'Full power as much as possible', val: 'full' }
+    ].map(x => {
+      const sel = d.priority === x.val;
+      return { label: x.label, checkOp: sel ? 1 : 0, bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setD({ priority: x.val }) };
+    });
+
+    const photoDefs = [
+      { key: 'panel', label: 'Main electrical panel' }, { key: 'meter', label: 'Meter / supply point' },
+      { key: 'roof', label: 'Roof / panel area' }, { key: 'stickers', label: 'AC / pump stickers' }
+    ];
+    const photoTiles = photoDefs.map(t => {
+      const v = d.photos[t.key];
+      return {
+        label: t.label, has: !!v, empty: !v, thumb: v,
+        onFile: e => this.fileUrl(e, url => this.setD({ photos: Object.assign({}, d.photos, { [t.key]: url }) })),
+        onRemove: () => this.setD({ photos: Object.assign({}, d.photos, { [t.key]: null }) })
+      };
+    });
+
+    // Review
+    const yn = v => v ? 'Yes' : 'No';
+    const dash = v => v || '—';
+    const labelMaps = {
+      systemType: { hybrid: 'Hybrid', offgrid: 'Off-grid', ongrid: 'On-grid', recommend: 'Recommend for me' },
+      priority: { essentials: 'Essentials only', essentials_ac: 'Essentials + AC', full: 'Full power' },
+      nightEconomy: { yes: 'Essentials only at night', no: 'Similar power day & night' }
+    };
+    const coolBits = [];
+    coolBits.push({ k: 'AC units', v: String(d.acUnits.length) });
+    d.acUnits.forEach((u, i) => {
+      const cap = u.dontKnow ? 'capacity: we\u2019ll check' : (u.capValue ? u.capValue + ' ' + u.capUnit.toUpperCase() : 'capacity: —');
+      coolBits.push({ k: 'AC ' + (i + 1) + (u.location ? ' · ' + u.location : ''), v: dash(u.type) + ', ' + cap + ', ' + u.hours + 'h' + (u.night ? ', nights' : '') });
+    });
+    coolBits.push({ k: 'Fridge', v: d.fridge.on ? d.fridge.qty + ' × ' + d.fridge.condition + (d.fridge.alwaysOn ? ', always on' : '') : 'No' });
+    coolBits.push({ k: 'Freezer', v: d.freezer.on ? d.freezer.qty + ' × ' + d.freezer.condition + (d.freezer.alwaysOn ? ', always on' : '') : 'No' });
+
+    const appBits = [{ k: 'Lighting', v: lt.count + ' bulbs (' + dash(lt.type || 'type —') + '), ' + lt.nightHours + 'h at night' }];
+    d.appliances.forEach(a => appBits.push({ k: dash(a.name || 'Custom device'), v: a.qty + ' × ' + a.hours + 'h/day' + (a.night ? ', nights' : '') }));
+    if (d.heavyDuty.length) appBits.push({ k: 'Heavy-duty', v: d.heavyDuty.length + ' selected' });
+
+    const photoCount = photoDefs.filter(t => d.photos[t.key]).length;
+    const reviewGroups = [
+      { title: 'Your details', step: 1, rows: [{ k: 'Name', v: dash(d.name) }, { k: 'WhatsApp', v: d.whatsapp ? '+218 ' + d.whatsapp : '—' }, { k: 'Property', v: d.propertyType === 'Other' ? dash(d.propertyOther) : dash(d.propertyType) }, { k: 'City / area', v: dash(d.city) }] },
+      { title: 'Power use', step: 2, rows: [{ k: 'Supply', v: dash(d.supply) }, { k: 'Daily cuts', v: dash(d.outageHours) }, { k: 'Peak time', v: dash(d.peakTime) }, { k: 'At night', v: dash(labelMaps.nightEconomy[d.nightEconomy]) }, { k: 'Usage pattern', v: dash(d.operation) }] },
+      { title: 'Cooling', step: 3, rows: coolBits },
+      { title: 'Appliances', step: 4, rows: appBits },
+      { title: 'Preferences', step: 5, rows: [{ k: 'System type', v: dash(labelMaps.systemType[d.systemType]) }, { k: 'Cut priority', v: dash(labelMaps.priority[d.priority]) + (d.priority === 'essentials_ac' ? ' (' + d.priorityAcCount + ' AC)' : '') }, { k: 'Roof space', v: dash(d.roofSpace) }, { k: 'Roof shade', v: dash(d.roofShade) }, { k: 'Photos', v: photoCount + ' of 4 added' }] }
+    ].map(g => ({ title: g.title, rows: g.rows, onEdit: () => this.setState({ step: g.step }) }));
+
+    const est = this.estimate();
+    const can = this.canContinue();
+    const firstName = (d.name.trim().split(/\s+/)[0]) || 'friend';
+    const waNumber = (this.props.waNumber || '+218911139113').replace(/\D/g, '');
+    const waText = encodeURIComponent('Hello Al Qema! I just completed the solar estimate form. My name is ' + (d.name || '') + ' — estimated system: ' + est.kwp + ' kWp, ' + est.inv + ' kW inverter, ' + est.bat + ' kWh battery. Please send my detailed quote.');
+
+    return {
+      d, lt, est, firstName,
+      s0: step === 0, s1: step === 1, s2: step === 2, s3: step === 3, s4: step === 4, s5: step === 5, s6: step === 6, s7: step === 7,
+      showProgress: step >= 1 && step <= 6,
+      showNav: step >= 1 && step <= 6,
+      backVisible: step > 1, backHidden: step <= 1,
+      stepNum: step, stepTitle: titles[step] || '',
+      progressPct: Math.round(step / 6 * 100) + '%',
+      contLabel: step === 6 ? 'Get my estimate' : 'Continue',
+      contDisabled: !can,
+      contOpacity: can ? 1 : 0.45,
+      logoOk: !s.logoFailed, logoFailed: s.logoFailed,
+      onLogoError: () => this.setState({ logoFailed: true }),
+      onStart: () => this.setState({ step: 1 }),
+      onBack: () => this.setState({ step: Math.max(0, step - 1) }),
+      onContinue: () => { if (can) this.setState({ step: Math.min(7, step + 1) }); },
+      onStartOver: () => this.setState({ step: 0 }),
+      onName: e => this.setD({ name: e.target.value }),
+      onWhatsapp: e => this.setD({ whatsapp: e.target.value }),
+      onPropertyOther: e => this.setD({ propertyOther: e.target.value }),
+      onCity: e => this.setD({ city: e.target.value }),
+      onNotes: e => this.setD({ notes: e.target.value }),
+      propertyOpts, propertyIsOther: d.propertyType === 'Other',
+      supplyOpts: this.seg(['Public grid', 'Generator', 'Both', 'None'], d.supply, 'supply'),
+      outageOpts: this.seg(['0\u20134 hrs', '4\u20138 hrs', '8\u201312 hrs', 'More than 12 hrs'], d.outageHours, 'outageHours'),
+      peakOpts: this.seg(['Daytime (8am\u20135pm)', 'Night (6pm\u20137am)', 'All day (~24h)'], d.peakTime, 'peakTime'),
+      nightEcoOpts: [{ label: 'Yes — essentials only at night', val: 'yes' }, { label: 'No — I want similar power day and night', val: 'no' }].map(x => {
+        const sel = d.nightEconomy === x.val;
+        return { label: x.label, checkOp: sel ? 1 : 0, bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setD({ nightEconomy: x.val }) };
+      }),
+      operationOpts: this.seg(['Continuous (fridge, router, cameras)', 'On and off as needed', 'Heavy use at specific hours'], d.operation, 'operation'),
+      acCount: d.acUnits.length,
+      acCountUp: () => this.setAcCount(d.acUnits.length + 1),
+      acCountDown: () => this.setAcCount(d.acUnits.length - 1),
+      acRows, coldRows,
+      bulbOpts: [{ label: 'LED', val: 'led' }, { label: 'Regular', val: 'regular' }, { label: 'Mixed', val: 'mixed' }].map(x => {
+        const sel = lt.type === x.val;
+        return { label: x.label, bg: sel ? '#FBEAEC' : '#FFFFFF', border: sel ? '#BD202F' : '#E5E7EB', color: sel ? '#BD202F' : '#4A4A4A', onClick: () => this.setLight({ type: x.val }) };
+      }),
+      bulbsUp: () => this.setLight({ count: Math.min(200, lt.count + 1) }),
+      bulbsDown: () => this.setLight({ count: Math.max(0, lt.count - 1) }),
+      onBulbWatts: e => this.setLight({ watts: e.target.value }),
+      onNightHours: e => this.setLight({ nightHours: parseInt(e.target.value, 10) || 0 }),
+      appChips, appRows, hdOpts,
+      systemOpts, priorityOpts,
+      showPriorityAc: d.priority === 'essentials_ac',
+      prioAcUp: () => this.setD({ priorityAcCount: Math.min(10, d.priorityAcCount + 1) }),
+      prioAcDown: () => this.setD({ priorityAcCount: Math.max(1, d.priorityAcCount - 1) }),
+      roofOpts: this.seg(['Small', 'Medium', 'Large', 'Not sure'], d.roofSpace, 'roofSpace'),
+      shadeOpts: this.seg(['Yes', 'No'], d.roofShade, 'roofShade'),
+      photoTiles, reviewGroups,
+      priceVisible: this.props.showPrice !== false,
+      waLink: 'https://wa.me/' + waNumber + '?text=' + waText
+    };
+  }
+}
+</script>
+</body>
+</html>

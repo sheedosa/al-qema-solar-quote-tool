@@ -1,0 +1,72 @@
+:root {
+  --red: #bd202f;
+  --red-hover: #a81c2a;
+  --red-link-hover: #9a1a26;
+  --red-tint: #fbeaec;
+  --ink: #2d2d2d;
+  --body: #4a4a4a;
+  --muted: #6c757d;
+  --faint: #adb5bd;
+  --border: #e5e7eb;
+  --canvas: #f8f9fa;
+  --toggle-off: #cbd2d9;
+  --green: #1e7e4f;
+  --green-tint: #e7f3ed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  font-family: 'Cairo', system-ui, sans-serif;
+  color: var(--body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--red);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--red-link-hover);
+  text-decoration: underline;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
+  font-family: 'Cairo', sans-serif;
+}
+
+input,
+textarea,
+button {
+  font-family: 'Cairo', sans-serif;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(189, 32, 47, 0.15);
+}
+
+input[type='range'] {
+  accent-color: var(--red);
+}
+
+@keyframes stepIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
