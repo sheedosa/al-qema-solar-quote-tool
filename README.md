@@ -8,6 +8,18 @@ Built from the Claude Design handoff prototype (`project/Al Qema Solar Quote.dc.
 as a real **Vite + React + TypeScript** single-page app. The sizing model, option
 lists, validation, and copy are ported faithfully from the prototype.
 
+## Languages (Arabic / English)
+
+The app is fully bilingual. **Arabic (RTL) is the default** on load; a header
+toggle (`ع` / `EN`) switches languages live. Switching flips the document
+direction (`<html dir>`), swaps the full string bundle, and preserves the user's
+progress. The Arabic type is set in **Tajawal**.
+
+All translations live in [`src/i18n.tsx`](src/i18n.tsx). Option *values* stored in
+form state are language-neutral; only their *labels* are translated, so the sizing
+logic is identical in both languages. Technical units (kWp, kW, kWh, BTU) stay in
+Latin as is conventional in Libyan Arabic technical copy.
+
 ## Getting started
 
 ```bash
@@ -48,8 +60,9 @@ Deployment-tunable values live in [`src/config.ts`](src/config.ts):
 ```
 src/
   App.tsx              step routing, navigation, scroll reset
+  i18n.tsx             AR + EN string bundles, language context, RTL handling
   logic.ts             sizing model (estimate), validation, presets, defaults
-  review.ts            builds the review-screen summary groups
+  review.ts            builds the localized review-screen summary groups
   useQuoteForm.ts      form state + all mutations
   types.ts             form data types
   theme.ts / index.css color tokens & global styles
