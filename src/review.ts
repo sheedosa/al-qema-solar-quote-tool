@@ -15,16 +15,17 @@ export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
     const cap = u.dontKnow
       ? R.capWeCheck
       : u.capValue
-        ? u.capValue + ' ' + u.capUnit.toUpperCase()
+        ? // LRI…PDI keeps "12,000 BTU" reading the same way round in RTL as it
+          // does on the capacity chips; without it bidi flips it to "BTU 12,000".
+          '⁦' + (s.opt.acCapacity[u.capValue] || u.capValue) + '⁩'
         : R.capDash
-    const typeLabel = u.type ? s.opt.acType[u.type] : R.typeDash
     coolBits.push({
-      k: R.acPrefix + ' ' + (i + 1) + (u.location ? ' · ' + u.location : ''),
-      v: typeLabel + R.sep + cap + R.sep + u.hours + R.hUnit + (u.night ? R.nights : ''),
+      k: R.acPrefix + ' ' + (i + 1),
+      v: cap + R.sep + u.hours + R.hUnit + (u.night ? R.nights : ''),
     })
   })
   const coldValue = (r: FormData['fridge']) =>
-    r.on ? r.qty + ' × ' + s.reviewMap.condition[r.condition] + (r.alwaysOn ? R.alwaysOn : '') : R.no
+    r.on ? String(r.qty) + (r.alwaysOn ? R.alwaysOn : '') : R.no
   coolBits.push({ k: R.keys.fridge, v: coldValue(d.fridge) })
   coolBits.push({ k: R.keys.freezer, v: coldValue(d.freezer) })
 
@@ -49,13 +50,9 @@ export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
   ]
   d.appliances.forEach((a) => {
     const name = a.custom ? a.name || R.customDevice : s.opt.preset[a.name] || a.name
-    appBits.push({
-      k: name,
-      v: a.qty + ' × ' + a.hours + R.hUnit + R.perDay + (a.night ? R.nights : ''),
-    })
+    // Quantity is all the customer chose; hours/night are hidden assumptions.
+    appBits.push({ k: name, v: String(a.qty) })
   })
-  if (d.heavyDuty.length)
-    appBits.push({ k: R.keys.heavyDuty, v: d.heavyDuty.length + ' ' + R.selectedSuffix })
 
   const photoCount = (Object.keys(d.photos) as (keyof FormData['photos'])[]).filter(
     (k) => d.photos[k],
@@ -82,11 +79,9 @@ export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
       title: R.groups.power,
       step: 2,
       rows: [
-        { k: R.keys.supply, v: dash(s.opt.supply[d.supply]) },
         { k: R.keys.dailyCuts, v: dash(s.opt.outage[d.outageHours]) },
-        { k: R.keys.peakTime, v: dash(s.opt.peak[d.peakTime]) },
-        { k: R.keys.atNight, v: dash(s.reviewMap.nightEconomy[d.nightEconomy]) },
         { k: R.keys.usagePattern, v: dash(s.opt.operation[d.operation]) },
+        { k: R.keys.atNight, v: dash(s.reviewMap.nightEconomy[d.nightEconomy]) },
       ],
     },
     { title: R.groups.cooling, step: 3, rows: coolBits },

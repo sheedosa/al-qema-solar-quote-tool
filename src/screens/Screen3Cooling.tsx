@@ -1,6 +1,6 @@
 import { C, inputStyle } from '../theme'
 import { Card, SegOption, Stepper, Toggle, CameraIcon, Kicker } from '../components/ui'
-import { INVERTER_VALS, useStrings, type Strings } from '../i18n'
+import { AC_CAP_VALS, INVERTER_VALS, useStrings, type Strings } from '../i18n'
 import { fileUrl, type QuoteForm } from '../useQuoteForm'
 import type { AcUnit, ColdUnit } from '../types'
 
@@ -18,7 +18,6 @@ function AcRow({
   s: Strings
 }) {
   const { setAc, removeAc } = form
-  const capPlaceholder = u.capUnit === 'btu' ? s.cooling.capBtuPlaceholder : s.cooling.capTonPlaceholder
 
   return (
     <Card
@@ -63,91 +62,31 @@ function AcRow({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={smallLabel}>{s.cooling.location}</label>
-        <input
-          type="text"
-          value={u.location}
-          onChange={(e) => setAc(index, { location: e.target.value })}
-          placeholder={s.cooling.locationPlaceholder}
-          style={inputStyle}
-        />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={smallLabel}>{s.cooling.type}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(['Split', 'Window'] as const).map((t) => (
+        <div style={smallLabel}>{s.cooling.capacity}</div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: 8,
+          }}
+        >
+          {AC_CAP_VALS.map((v) => (
             <SegOption
-              key={t}
-              label={s.opt.acType[t]}
-              selected={u.type === t}
-              onClick={() => setAc(index, { type: t })}
+              key={v}
+              label={<span dir="ltr">{s.opt.acCapacity[v]}</span>}
+              selected={!u.dontKnow && u.capValue === v}
+              onClick={() => setAc(index, { capValue: v, dontKnow: false })}
+              style={{ padding: '10px 8px', fontSize: 13.5 }}
             />
           ))}
+          <SegOption
+            label={s.cooling.dontKnow}
+            selected={u.dontKnow}
+            onClick={() => setAc(index, { dontKnow: true, capValue: '' })}
+            style={{ gridColumn: '1 / -1', padding: '10px 8px', fontSize: 13.5 }}
+          />
         </div>
       </div>
-
-      {!u.dontKnow && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={smallLabel}>{s.cooling.capacity}</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={u.capValue}
-              onChange={(e) => setAc(index, { capValue: e.target.value })}
-              placeholder={capPlaceholder}
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <div
-              style={{
-                display: 'flex',
-                border: `1px solid ${C.border}`,
-                borderRadius: 999,
-                overflow: 'hidden',
-              }}
-            >
-              {(['btu', 'ton'] as const).map((unit) => {
-                const sel = u.capUnit === unit
-                return (
-                  <button
-                    key={unit}
-                    onClick={() => setAc(index, { capUnit: unit })}
-                    style={{
-                      border: 'none',
-                      minHeight: 44,
-                      padding: '8px 16px',
-                      background: sel ? C.red : C.white,
-                      color: sel ? C.white : C.muted,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {unit.toUpperCase()}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <button
-            onClick={() => setAc(index, { dontKnow: true, capValue: '' })}
-            style={{
-              alignSelf: 'flex-start',
-              border: 'none',
-              background: 'transparent',
-              color: C.red,
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '4px 0',
-              textDecoration: 'underline',
-            }}
-          >
-            {s.cooling.dontKnow}
-          </button>
-        </div>
-      )}
 
       {u.dontKnow && (
         <div
@@ -347,37 +286,6 @@ function ColdRow({
               onDec={() => setCold(keyName, { qty: Math.max(1, r.qty - 1) })}
               onInc={() => setCold(keyName, { qty: Math.min(10, r.qty + 1) })}
             />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={smallLabel}>
-              {s.cooling.capacityL}{' '}
-              <span style={{ color: C.muted, fontWeight: 400, fontSize: 12.5 }}>
-                {s.cooling.capacityLOptional}
-              </span>
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={r.capacityL}
-              onChange={(e) => setCold(keyName, { capacityL: e.target.value })}
-              placeholder={s.cooling.capacityLPlaceholder}
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={smallLabel}>{s.cooling.condition}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['new', 'old'] as const).map((c) => (
-                <SegOption
-                  key={c}
-                  label={s.opt.condition[c]}
-                  selected={r.condition === c}
-                  onClick={() => setCold(keyName, { condition: c })}
-                />
-              ))}
-            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

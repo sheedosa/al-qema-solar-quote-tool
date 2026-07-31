@@ -38,15 +38,21 @@ Eight screens (`step` 0–7):
 
 0. **Welcome** — intro + trust badges
 1. **Your details** — name, WhatsApp number, property type, city _(validated)_
-2. **Power situation** — supply, outages, peak time, night economy, usage _(validated)_
-3. **Cooling** — dynamic AC units (0–10) + fridge/freezer
-4. **Lighting & appliances** — bulbs, preset/custom appliance builder, heavy-duty flags
+2. **Power situation** — daily outages, what you want to keep running, night economy _(validated)_
+3. **Cooling** — dynamic AC units (0–10, fixed BTU capacity) + fridge/freezer
+4. **Lighting & appliances** — bulbs, preset/custom appliance builder (quantity only)
 5. **Preferences** — system type, cut priority, roof space/shade, optional photos
 6. **Review** — editable summary + free-text notes
 7. **Result** — recommended sizing, indicative price, WhatsApp CTA
 
 Steps 1 and 2 gate the **Continue** button until required fields are filled; steps
 3–5 are optional. The estimate recomputes live from all inputs.
+
+> **Hidden sizing assumptions.** Customers only pick a *quantity* for each appliance, so every
+> preset in [`src/logic.ts`](src/logic.ts) carries a default `h` (hours run per day) and `night`
+> flag they never see. Those two numbers feed `estimate()` directly — **changing them changes every
+> quote.** Custom "Add other" devices fall back to 100 W / 4 h regardless of what they are named;
+> the name is still captured for the sales engineer, who confirms final sizing.
 
 ## Configuration
 

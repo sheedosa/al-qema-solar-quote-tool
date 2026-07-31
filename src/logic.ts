@@ -8,17 +8,14 @@ export function initialData(): FormData {
     propertyType: '',
     propertyOther: '',
     city: '',
-    supply: '',
     outageHours: '',
-    peakTime: '',
     nightEconomy: '',
     operation: '',
     acUnits: [],
-    fridge: { on: true, qty: 1, capacityL: '', condition: 'new', alwaysOn: true },
-    freezer: { on: false, qty: 1, capacityL: '', condition: 'new', alwaysOn: true },
+    fridge: { on: true, qty: 1, alwaysOn: true },
+    freezer: { on: false, qty: 1, alwaysOn: true },
     lighting: { type: '', count: 10, watts: '', nightHours: 5 },
     appliances: [],
-    heavyDuty: [],
     systemType: 'recommend',
     priority: '',
     priorityAcCount: 1,
@@ -32,10 +29,7 @@ export function initialData(): FormData {
 /** A fresh AC unit row. */
 export function makeAc(): AcUnit {
   return {
-    location: '',
-    type: '',
     capValue: '',
-    capUnit: 'btu',
     dontKnow: false,
     model: '',
     photo: null,
@@ -45,22 +39,27 @@ export function makeAc(): AcUnit {
   }
 }
 
-/** Preset appliances offered as quick-add chips, with default wattage. */
-export type Preset = { name: string; w: number; pump?: boolean }
+/**
+ * Preset appliances offered as quick-add chips.
+ *
+ * The customer only ever chooses a quantity, so `w` (watts), `h` (hours run per
+ * day) and `night` (contributes to the overnight battery load) are hidden sizing
+ * assumptions. Changing any of them changes every quote.
+ */
+export type Preset = { name: string; w: number; h: number; night?: boolean }
 
 export const PRESETS: Preset[] = [
-  { name: 'Router / Internet', w: 15 },
-  { name: 'TV', w: 100 },
-  { name: 'Phone / Laptop charger', w: 60 },
-  { name: 'Fans', w: 70 },
-  { name: 'Water pump', w: 750, pump: true },
-  { name: 'Water heater', w: 1500 },
-  { name: 'Washing machine', w: 500 },
-  { name: 'Dryer', w: 2000 },
-  { name: 'Oven / Microwave', w: 1500 },
-  { name: 'Coffee machine / Kettle', w: 1200 },
-  { name: 'Security cameras / NVR', w: 60 },
-  { name: 'Server / Network', w: 300 },
+  { name: 'Router / Internet', w: 15, h: 24, night: true },
+  { name: 'TV', w: 100, h: 4, night: true },
+  { name: 'Phone / Laptop charger', w: 60, h: 4, night: true },
+  { name: 'Fan', w: 70, h: 8, night: true },
+  { name: 'Water pump', w: 750, h: 1 },
+  { name: 'Washing machine', w: 500, h: 2 },
+  { name: 'Dryer', w: 2000, h: 1.5 },
+  { name: 'Oven / Microwave', w: 1500, h: 1 },
+  { name: 'Coffee machine / Kettle', w: 1200, h: 0.5 },
+  { name: 'Security cameras / NVR', w: 60, h: 24, night: true },
+  { name: 'Server / Network', w: 150, h: 24, night: true },
 ]
 
 /** Build an appliance row from a preset (or a blank custom row when null). */
@@ -69,12 +68,9 @@ export function makeAppliance(id: number, p: Preset | null): Appliance {
     id,
     name: p ? p.name : '',
     custom: !p,
-    pump: !!(p && p.pump),
-    hp: '1',
     qty: 1,
-    hours: p && p.pump ? 1 : 4,
-    night: false,
-    watts: '',
+    hours: p ? p.h : 4,
+    night: p ? !!p.night : false,
     defW: p ? p.w : 100,
   }
 }
@@ -91,7 +87,7 @@ export function estimate(d: FormData): Estimate {
   d.acUnits.forEach((u) => {
     let tons = 1.25
     const v = parseFloat(u.capValue)
-    if (!u.dontKnow && v > 0) tons = u.capUnit === 'btu' ? v / 12000 : v
+    if (!u.dontKnow && v > 0) tons = v / 12000
     let w = tons * 1200
     if (u.inverter === 'yes') w *= 0.75
     peak += w
@@ -100,12 +96,12 @@ export function estimate(d: FormData): Estimate {
   })
 
   if (d.fridge.on) {
-    daily += 1.2 * d.fridge.qty * (d.fridge.condition === 'old' ? 1.5 : 1)
+    daily += 1.2 * d.fridge.qty
     night += 0.5 * d.fridge.qty
     peak += 200 * d.fridge.qty
   }
   if (d.freezer.on) {
-    daily += 1.5 * d.freezer.qty * (d.freezer.condition === 'old' ? 1.5 : 1)
+    daily += 1.5 * d.freezer.qty
     night += 0.6 * d.freezer.qty
     peak += 300 * d.freezer.qty
   }
@@ -119,8 +115,7 @@ export function estimate(d: FormData): Estimate {
   peak += d.lighting.count * bw
 
   d.appliances.forEach((a) => {
-    let w = parseFloat(a.watts) || a.defW
-    if (a.pump) w = (parseFloat(a.hp) || 1) * 750
+    const w = a.defW
     const kwh = (w * a.qty * (a.hours || 0)) / 1000
     daily += kwh
     peak += w * a.qty
@@ -164,7 +159,7 @@ export function canContinue(d: FormData, step: number): boolean {
     )
   }
   if (step === 2) {
-    return !!(d.supply && d.outageHours && d.peakTime && d.nightEconomy && d.operation)
+    return !!(d.outageHours && d.nightEconomy && d.operation)
   }
   return true
 }

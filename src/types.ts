@@ -1,8 +1,6 @@
 export type AcUnit = {
-  location: string
-  type: '' | 'Split' | 'Window'
+  /** '' | '9000' | '12000' | '18000' | '24000' | '32000' — BTU, chosen from fixed options. */
   capValue: string
-  capUnit: 'btu' | 'ton'
   dontKnow: boolean
   model: string
   photo: string | null
@@ -14,8 +12,6 @@ export type AcUnit = {
 export type ColdUnit = {
   on: boolean
   qty: number
-  capacityL: string
-  condition: 'new' | 'old'
   alwaysOn: boolean
 }
 
@@ -30,12 +26,10 @@ export type Appliance = {
   id: number
   name: string
   custom: boolean
-  pump: boolean
-  hp: string
   qty: number
+  /** Hidden, preset-derived sizing assumptions — not user-editable. */
   hours: number
   night: boolean
-  watts: string
   defW: number
 }
 
@@ -47,9 +41,7 @@ export type FormData = {
   propertyType: string
   propertyOther: string
   city: string
-  supply: string
   outageHours: string
-  peakTime: string
   nightEconomy: string
   operation: string
   acUnits: AcUnit[]
@@ -57,7 +49,6 @@ export type FormData = {
   freezer: ColdUnit
   lighting: Lighting
   appliances: Appliance[]
-  heavyDuty: string[]
   systemType: string
   priority: string
   priorityAcCount: number

@@ -72,6 +72,8 @@ export function CheckOption({
         cursor: 'pointer',
         textAlign: 'start',
         width: '100%',
+        lineHeight: 1.35,
+        textWrap: 'pretty',
         ...style,
       }}
     >
@@ -83,7 +85,7 @@ export function CheckOption({
 
 /**
  * A compact segmented option button (no check icon). Used for inline
- * choices like AC type, inverter, condition, bulb type and pump size.
+ * choices like inverter type, AC capacity and bulb type.
  */
 export function SegOption({
   label,
