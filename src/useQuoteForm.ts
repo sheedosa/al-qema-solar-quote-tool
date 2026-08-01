@@ -1,10 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import {
-  initialData,
-  makeAc,
-  makeAppliance,
-  type Preset,
-} from './logic'
+import { initialData, makeAc, makeAppliance } from './logic'
 import type { AcUnit, ColdUnit, FormData, Lighting, PhotoKey } from './types'
 
 /**
@@ -51,10 +46,10 @@ export function useQuoteForm() {
     setData((s) => ({ ...s, lighting: { ...s.lighting, ...patch } }))
   }, [])
 
-  const addAppliance = useCallback((p: Preset | null) => {
+  const addAppliance = useCallback((name: string | null) => {
     setData((s) => ({
       ...s,
-      appliances: s.appliances.concat([makeAppliance(appId.current++, p)]),
+      appliances: s.appliances.concat([makeAppliance(appId.current++, name)]),
     }))
   }, [])
 

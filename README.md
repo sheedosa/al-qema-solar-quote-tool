@@ -43,16 +43,37 @@ Eight screens (`step` 0–7):
 4. **Lighting & appliances** — bulbs, preset/custom appliance builder (quantity only)
 5. **Preferences** — system type, cut priority, roof space/shade, optional photos
 6. **Review** — editable summary + free-text notes
-7. **Result** — recommended sizing, indicative price, WhatsApp CTA
+7. **Result** — recommended package (S/M/L/XL/XXL or custom), "From X LYD" price, WhatsApp CTA
 
 Steps 1 and 2 gate the **Continue** button until required fields are filled; steps
-3–5 are optional. The estimate recomputes live from all inputs.
+3–5 are optional. The recommendation recomputes live from all inputs.
 
-> **Hidden sizing assumptions.** Customers only pick a *quantity* for each appliance, so every
-> preset in [`src/logic.ts`](src/logic.ts) carries a default `h` (hours run per day) and `night`
-> flag they never see. Those two numbers feed `estimate()` directly — **changing them changes every
-> quote.** Custom "Add other" devices fall back to 100 W / 4 h regardless of what they are named;
-> the name is still captured for the sales engineer, who confirms final sizing.
+## Pricing engine
+
+The result screen is driven by a pure, deterministic engine in `src/pricing/`:
+
+- [`config.ts`](src/pricing/config.ts) — **all client-editable data**: the five package
+  definitions with their fixed contractual prices (looked up, never computed), the retail
+  component rate card, DRAFT load defaults, and sizing constants. **To update prices: edit the
+  numbers, bump `configVersion`, run `npm run deploy`.** No logic changes are ever needed. The
+  file header lists the open questions awaiting client confirmation (liquid-battery voltage,
+  M-tier AC rating, peak sun hours, …) — each is a single config value.
+- [`engine.ts`](src/pricing/engine.ts) — normalizes the form answers into uniform load records,
+  computes daily/night energy and peak power, and matches the smallest package that satisfies
+  every constraint. No match → a custom-system recommendation with **no invented price**.
+  Unknown answers never crash: documented defaults apply and the result is flagged
+  `confidence: 'low'`.
+- [`persist.ts`](src/pricing/persist.ts) — auditable quote records (input payload + computed
+  output + `configVersion`). Currently a no-op stub; swap in Supabase/API here and nothing else
+  changes.
+- [`engine.test.ts`](src/pricing/engine.test.ts) — `npm test` (Vitest). Includes a
+  reconciliation test that rebuilds the client's 16/07/2026 quotation from the component rates
+  to exactly 84,300 LYD.
+
+Customers only ever pick a quantity for appliances; per-device watts/hours live in
+`config.ts → loadDefaults` and are hidden assumptions — changing them changes every quote.
+Custom "Add other" devices are modelled at 100 W / 4 h; the typed name still reaches the
+sales engineer.
 
 ## Configuration
 
@@ -65,9 +86,10 @@ Deployment-tunable values live in [`src/config.ts`](src/config.ts):
 
 ```
 src/
-  App.tsx              step routing, navigation, scroll reset
+  App.tsx              step routing, navigation, quote persistence trigger
   i18n.tsx             AR + EN string bundles, language context, RTL handling
-  logic.ts             sizing model (estimate), validation, presets, defaults
+  logic.ts             form defaults, validation, preset names, WhatsApp link
+  pricing/             sizing & pricing engine (config, engine, persist, tests)
   review.ts            builds the localized review-screen summary groups
   useQuoteForm.ts      form state + all mutations
   types.ts             form data types

@@ -1,9 +1,19 @@
 import { C } from '../theme'
-import { Card } from '../components/ui'
+import { Card, Check } from '../components/ui'
 import { useStrings } from '../i18n'
-import type { Estimate } from '../types'
+import type { EngineResult } from '../pricing/types'
 
-function Metric({ label, value, unit }: { label: string; value: string; unit: string }) {
+function Metric({
+  label,
+  value,
+  unit,
+  sub,
+}: {
+  label: string
+  value: string
+  unit: string
+  sub?: string
+}) {
   return (
     <div style={{ background: C.canvas, borderRadius: 12, padding: '18px 14px', textAlign: 'center' }}>
       <div
@@ -22,6 +32,11 @@ function Metric({ label, value, unit }: { label: string; value: string; unit: st
         {value}
       </div>
       <div style={{ fontSize: 12.5, fontWeight: 500, color: C.muted }}>{unit}</div>
+      {sub && (
+        <div style={{ fontSize: 12, fontWeight: 400, color: C.faint, marginTop: 4 }} dir="auto">
+          {sub}
+        </div>
+      )}
     </div>
   )
 }
@@ -52,21 +67,26 @@ function Step({ n, children }: { n: number; children: string }) {
 }
 
 export function Screen7Result({
-  est,
+  result,
   firstName,
   priceVisible,
   waLink,
   onStartOver,
 }: {
-  est: Estimate
+  result: EngineResult
   firstName: string
   priceVisible: boolean
   waLink: string
   onStartOver: () => void
 }) {
   const s = useStrings()
-  const dailyText = '~' + est.dailyKwh + ' ' + s.result.kwhPerDay
-  const priceText = s.result.priceFrom + est.priceLyd.toLocaleString('en-US') + ' ' + s.result.lyd
+  const r = result
+  const specs = r.specs
+
+  const priceText =
+    r.priceFrom !== null
+      ? s.result.priceFrom + r.priceFrom.toLocaleString('en-US') + ' ' + s.result.lyd
+      : ''
 
   return (
     <div
@@ -114,41 +134,145 @@ export function Screen7Result({
             textWrap: 'pretty',
           }}
         >
-          {s.result.title}
-          {firstName}
+          {(r.isCustom ? s.result.customTitle : s.result.title) + firstName}
         </h2>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: C.muted }}>
           {s.result.subtitle}
         </p>
       </div>
 
-      <Card style={{ padding: '24px 20px' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
-            gap: 12,
-          }}
-        >
-          <Metric label={s.result.solarPanels} value={est.kwp} unit={s.result.kwpArray} />
-          <Metric label={s.result.inverter} value={est.inv} unit={s.result.kwHybrid} />
-          <Metric label={s.result.battery} value={est.bat} unit={s.result.kwh} />
-        </div>
-        <div
-          style={{
-            textAlign: 'center',
-            marginTop: 14,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: C.muted,
-          }}
-        >
-          {s.result.dailyNeed}{' '}
-          <span style={{ color: C.body, fontWeight: 700 }}>{dailyText}</span>
-        </div>
-      </Card>
+      {specs ? (
+        <Card style={{ padding: '24px 20px' }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: C.muted,
+              textAlign: 'center',
+              marginBottom: 6,
+            }}
+          >
+            {s.result.recommendedPackage}
+          </div>
+          <div
+            style={{
+              fontSize: 38,
+              fontWeight: 700,
+              color: C.red,
+              textAlign: 'center',
+              lineHeight: 1.2,
+              marginBottom: 16,
+            }}
+          >
+            {s.result.packagePrefix}
+            {r.recommendedTier}
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
+              gap: 12,
+            }}
+          >
+            <Metric
+              label={s.result.solarPanels}
+              value={specs.panels.kwp.toFixed(2)}
+              unit={s.result.kwpArray}
+              sub={specs.panels.count + ' × ' + specs.panels.watts + ' W'}
+            />
+            <Metric
+              label={s.result.inverter}
+              value={String(specs.inverter.kva)}
+              unit={s.result.kva}
+            />
+            <Metric
+              label={s.result.battery}
+              value={String(specs.battery.nominalKwh)}
+              unit={s.result.kwh}
+              sub={
+                (specs.battery.chemistry === 'liquid'
+                  ? s.result.batteryLiquid
+                  : s.result.batteryLithium) +
+                ' · ' +
+                (specs.battery.lifespanYears === 4
+                  ? s.result.batteryLife4
+                  : s.result.batteryLife10)
+              }
+            />
+          </div>
+          <div
+            style={{
+              textAlign: 'center',
+              marginTop: 14,
+              fontSize: 13.5,
+              fontWeight: 500,
+              color: C.muted,
+            }}
+          >
+            {s.result.dailyNeed}{' '}
+            <span style={{ color: C.body, fontWeight: 700 }}>
+              {'~' + Math.round(r.dailyKwh) + ' ' + s.result.kwhPerDay}
+            </span>
+          </div>
+          <div
+            style={{
+              textAlign: 'center',
+              marginTop: 4,
+              fontSize: 13.5,
+              fontWeight: 500,
+              color: C.muted,
+            }}
+          >
+            {s.result.nightNeed}{' '}
+            <span style={{ color: C.body, fontWeight: 700 }}>
+              {'~' + Math.round(r.nightKwh) + ' ' + s.result.kwhPerNight}
+            </span>
+          </div>
+        </Card>
+      ) : (
+        <>
+          <Card style={{ padding: '24px 20px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))',
+                gap: 12,
+              }}
+            >
+              <Metric
+                label={s.result.dailyShort}
+                value={'~' + Math.round(r.dailyKwh)}
+                unit={s.result.kwhPerDay}
+              />
+              <Metric label={s.result.peakLoad} value={r.peakKw.toFixed(1)} unit={s.result.kw} />
+              <Metric
+                label={s.result.nightShort}
+                value={'~' + Math.round(r.nightKwh)}
+                unit={s.result.kwhPerNight}
+              />
+            </div>
+          </Card>
+          <div
+            style={{
+              background: C.redTint,
+              borderRadius: 12,
+              padding: '20px 18px',
+              fontSize: 14.5,
+              fontWeight: 500,
+              color: C.body,
+              lineHeight: 1.6,
+              textAlign: 'center',
+              textWrap: 'pretty',
+            }}
+          >
+            {s.result.customBody}
+          </div>
+        </>
+      )}
 
-      {priceVisible && (
+      {specs && priceVisible && r.priceFrom !== null && (
         <div style={{ background: C.ink, borderRadius: 12, padding: '24px 20px', textAlign: 'center' }}>
           <div
             style={{
@@ -168,7 +292,102 @@ export function Screen7Result({
           <div style={{ fontSize: 13, fontWeight: 400, color: C.faint, marginTop: 6 }}>
             {s.result.priceNote}
           </div>
+          <div style={{ fontSize: 11, fontWeight: 400, color: C.faint, marginTop: 10, opacity: 0.7 }}>
+            {s.result.priceRef}: {r.configVersion}
+          </div>
         </div>
+      )}
+
+      {r.warnings.length > 0 && (
+        <div
+          style={{
+            background: C.amberTint,
+            borderRadius: 12,
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.amber }}>
+            {s.result.warningsTitle}
+          </div>
+          {r.warnings.map((id) => (
+            <div
+              key={id}
+              style={{ fontSize: 13.5, fontWeight: 500, color: C.body, lineHeight: 1.5 }}
+            >
+              {s.result.warnings[id]}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {r.confidence === 'low' && (
+        <Card style={{ padding: '18px 20px' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+            {s.result.assumedTitle}
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 400,
+              color: C.muted,
+              lineHeight: 1.5,
+              marginBottom: 10,
+            }}
+          >
+            {s.result.assumedBody}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {r.assumptionsMade.map((id) => (
+              <div key={id} style={{ fontSize: 13.5, fontWeight: 500, color: C.body }}>
+                · {s.result.assumptions[id]}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {specs && (
+        <Card>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 12 }}>
+            {s.result.includesTitle}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {r.includes.map((id) => (
+              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Check size={15} />
+                <span style={{ fontSize: 14, fontWeight: 500, color: C.body }}>
+                  {s.result.includes[id]}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div
+            style={{
+              marginTop: 14,
+              paddingTop: 12,
+              borderTop: `1px solid ${C.border}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
+              {s.result.runtimeNote}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
+              {s.result.warrantyNote}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
+              {s.result.addOnLine}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 400, color: C.faint }}>
+              {s.result.termsNote}
+            </div>
+          </div>
+        </Card>
       )}
 
       <Card>

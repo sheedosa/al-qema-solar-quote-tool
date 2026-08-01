@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import type { WaQuote } from './pricing/types'
 
 export type Lang = 'ar' | 'en'
 
@@ -22,7 +23,7 @@ export const OPERATION_VALS = [
   'essentials_ac_most',
   'everything',
 ]
-/** AC capacity in BTU. Stored as the full number so estimate()'s v/12000 holds. */
+/** AC capacity in BTU. Stored as the full number for the pricing engine. */
 export const AC_CAP_VALS = ['9000', '12000', '18000', '24000', '32000']
 export const ROOF_VALS = ['Small', 'Medium', 'Large', 'Not sure']
 export const SHADE_VALS = ['Yes', 'No']
@@ -199,11 +200,54 @@ const EN = {
     solarPanels: 'Solar panels',
     kwpArray: 'kWp array',
     inverter: 'Inverter',
-    kwHybrid: 'kW hybrid',
+    kva: 'kVA',
     battery: 'Battery storage',
     kwh: 'kWh',
     dailyNeed: 'Estimated daily energy need:',
     kwhPerDay: 'kWh/day',
+    nightNeed: 'Overnight (battery) energy:',
+    kwhPerNight: 'kWh/night',
+    dailyShort: 'Daily need',
+    nightShort: 'Overnight need',
+    peakLoad: 'Peak load',
+    kw: 'kW',
+    recommendedPackage: 'Recommended package',
+    packagePrefix: 'Package ',
+    batteryLiquid: 'liquid (lead-acid)',
+    batteryLithium: 'lithium',
+    batteryLife4: '4-year battery life',
+    batteryLife10: '10-year battery life',
+    includesTitle: 'Every Al Qema package includes',
+    includes: {
+      installConnection: 'Installation, connection & accessories',
+      economyLighting: 'Economy lighting',
+      tvScreen: 'TV / screen',
+      fridge: 'Fridge',
+      freezerOrPump: 'Freezer or water pump',
+    } as Record<string, string>,
+    runtimeNote: 'Backup runtime up to 12 hours, depending on devices and usage',
+    warrantyNote: '1-year warranty on all parts',
+    addOnLine: 'Optional add-on: battery box (2 batteries) — 350 LYD',
+    termsNote: 'Final scope covers the loads agreed with our engineer.',
+    priceRef: 'Pricing ref',
+    warningsTitle: 'Please note',
+    warnings: {
+      heavyDutyLoad:
+        'Heavy appliances (oven, kettle, dryer…) draw a lot of power — our engineer will review them with you.',
+      acBtuExceeded:
+        'One of your ACs is larger than this package officially supports — our engineer will confirm the right fit.',
+    } as Record<string, string>,
+    assumedTitle: 'We assumed a few details',
+    assumedBody:
+      "Where you weren't sure, we used typical values — our engineer will confirm before final pricing.",
+    assumptions: {
+      acSizeAssumed: 'AC size (12,000 BTU typical)',
+      lightingAssumed: 'Bulb wattage',
+      customApplianceAssumed: 'Custom device power',
+    } as Record<string, string>,
+    customTitle: 'You need a tailored system, ',
+    customBody:
+      'Your power needs go beyond our standard packages. Our engineer will design and price a custom system for you on WhatsApp — free of charge.',
     indicativePrice: 'Indicative price',
     priceFrom: 'From ~',
     lyd: 'LYD',
@@ -304,16 +348,26 @@ const EN = {
     } as Record<string, string>,
     acSuffix: 'AC',
   },
-  whatsappMsg: (name: string, kwp: string, inv: string, bat: string) =>
-    'Hello Al Qema! I just completed the solar estimate form. My name is ' +
-    name +
-    ' — estimated system: ' +
-    kwp +
-    ' kWp, ' +
-    inv +
-    ' kW inverter, ' +
-    bat +
-    ' kWh battery. Please send my detailed quote.',
+  whatsappMsg: (name: string, q: WaQuote) =>
+    q.isCustom
+      ? 'Hello Al Qema! I completed the solar estimate form. My name is ' +
+        name +
+        ' — my needs require a custom system (daily need ~' +
+        q.dailyKwh +
+        ' kWh). Ref: ' +
+        q.configVersion +
+        '. Please have an engineer contact me with a tailored quote.'
+      : 'Hello Al Qema! I completed the solar estimate form. My name is ' +
+        name +
+        ' — recommended: Package ' +
+        q.tier +
+        ', from ' +
+        (q.priceFrom ?? 0).toLocaleString('en-US') +
+        ' LYD (daily need ~' +
+        q.dailyKwh +
+        ' kWh). Ref: ' +
+        q.configVersion +
+        '. Please send my detailed quote.',
 }
 
 export type Strings = typeof EN
@@ -485,11 +539,53 @@ const AR: Strings = {
     solarPanels: 'الألواح الشمسية',
     kwpArray: 'kWp للمصفوفة',
     inverter: 'الإنفرتر',
-    kwHybrid: 'kW هجين',
+    kva: 'kVA',
     battery: 'تخزين البطارية',
     kwh: 'kWh',
     dailyNeed: 'الاستهلاك اليومي المقدّر:',
     kwhPerDay: 'kWh/يومياً',
+    nightNeed: 'الاستهلاك الليلي (البطارية):',
+    kwhPerNight: 'kWh/ليلة',
+    dailyShort: 'الاستهلاك اليومي',
+    nightShort: 'الاستهلاك الليلي',
+    peakLoad: 'ذروة الحمل',
+    kw: 'kW',
+    recommendedPackage: 'الباقة الموصى بها',
+    packagePrefix: 'باقة ',
+    batteryLiquid: 'سائلة (رصاص حمضي)',
+    batteryLithium: 'ليثيوم',
+    batteryLife4: 'عمر البطارية 4 سنوات',
+    batteryLife10: 'عمر البطارية 10 سنوات',
+    includesTitle: 'كل باقات القمة تشمل',
+    includes: {
+      installConnection: 'التركيب والتوصيل والملحقات',
+      economyLighting: 'إضاءة اقتصادية',
+      tvScreen: 'تلفزيون / شاشة',
+      fridge: 'ثلاجة',
+      freezerOrPump: 'مجمّد (فريزر) أو مضخة ماء',
+    },
+    runtimeNote: 'مدة التشغيل الاحتياطي حتى 12 ساعة حسب الأجهزة والاستخدام',
+    warrantyNote: 'ضمان سنة على جميع القطع',
+    addOnLine: 'إضافة اختيارية: صندوق بطاريات (بطاريتان) — 350 د.ل',
+    termsNote: 'يشمل النطاق النهائي الأحمال المتفق عليها مع مهندسنا.',
+    priceRef: 'مرجع التسعير',
+    warningsTitle: 'يرجى الملاحظة',
+    warnings: {
+      heavyDutyLoad:
+        'الأجهزة الثقيلة (فرن، غلّاية، نشّافة…) تستهلك طاقة كبيرة — سيراجعها مهندسنا معك.',
+      acBtuExceeded:
+        'أحد مكيّفاتك أكبر مما تدعمه هذه الباقة رسمياً — سيؤكّد مهندسنا الخيار المناسب.',
+    },
+    assumedTitle: 'افترضنا بعض التفاصيل',
+    assumedBody: 'حيث لم تكن متأكداً، استخدمنا قيماً نموذجية — سيؤكّدها مهندسنا قبل التسعير النهائي.',
+    assumptions: {
+      acSizeAssumed: 'حجم المكيّف (12,000 BTU نموذجي)',
+      lightingAssumed: 'قدرة اللمبات',
+      customApplianceAssumed: 'قدرة الجهاز المخصّص',
+    },
+    customTitle: 'تحتاج إلى نظام مخصّص، ',
+    customBody:
+      'احتياجاتك تتجاوز باقاتنا القياسية. سيقوم مهندسنا بتصميم وتسعير نظام مخصّص لك عبر واتساب — مجاناً.',
     indicativePrice: 'السعر التقديري',
     priceFrom: 'ابتداءً من ~',
     lyd: 'د.ل',
@@ -588,16 +684,26 @@ const AR: Strings = {
     },
     acSuffix: 'مكيّف',
   },
-  whatsappMsg: (name: string, kwp: string, inv: string, bat: string) =>
-    'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
-    name +
-    ' — النظام المقدّر: ' +
-    kwp +
-    ' kWp، إنفرتر ' +
-    inv +
-    ' kW، بطارية ' +
-    bat +
-    ' kWh. يرجى إرسال عرض السعر المفصّل.',
+  whatsappMsg: (name: string, q: WaQuote) =>
+    q.isCustom
+      ? 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
+        name +
+        ' — احتياجي يتطلب نظاماً مخصّصاً (استهلاك يومي ~' +
+        q.dailyKwh +
+        ' kWh). مرجع: ' +
+        q.configVersion +
+        '. يرجى تواصل مهندسكم معي لعرض سعر مخصّص.'
+      : 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
+        name +
+        ' — الباقة الموصى بها: ' +
+        q.tier +
+        '، ابتداءً من ' +
+        (q.priceFrom ?? 0).toLocaleString('en-US') +
+        ' د.ل (استهلاك يومي ~' +
+        q.dailyKwh +
+        ' kWh). مرجع: ' +
+        q.configVersion +
+        '. يرجى إرسال عرض السعر المفصّل.',
 }
 
 const BUNDLES: Record<Lang, Strings> = { en: EN, ar: AR }

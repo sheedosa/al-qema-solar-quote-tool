@@ -27,10 +27,6 @@ export type Appliance = {
   name: string
   custom: boolean
   qty: number
-  /** Hidden, preset-derived sizing assumptions — not user-editable. */
-  hours: number
-  night: boolean
-  defW: number
 }
 
 export type PhotoKey = 'panel' | 'meter' | 'roof' | 'stickers'
@@ -58,12 +54,3 @@ export type FormData = {
   notes: string
 }
 
-export type Estimate = {
-  /** Language-neutral display strings (numerals + en-dash). */
-  kwp: string
-  inv: string
-  bat: string
-  /** Raw values, formatted with localized units at render time. */
-  dailyKwh: number
-  priceLyd: number
-}

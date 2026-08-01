@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from './theme'
 import { SHOW_PRICE, WA_NUMBER } from './config'
 import { useLang } from './i18n'
-import { canContinue, estimate, whatsappLink } from './logic'
+import { canContinue, whatsappLink } from './logic'
+import { PRICING_CONFIG } from './pricing/config'
+import { runEngine, toWaQuote } from './pricing/engine'
+import { buildQuoteRecord, persistence } from './pricing/persist'
 import { useQuoteForm } from './useQuoteForm'
 import { Header } from './components/Header'
 import { FooterNav } from './components/FooterNav'
@@ -40,10 +43,22 @@ export default function App() {
     }
   }, [step])
 
-  const est = useMemo(() => estimate(d), [d])
+  const result = useMemo(() => runEngine(d, PRICING_CONFIG), [d])
   const can = canContinue(d, step)
   const firstName = d.name.trim().split(/\s+/)[0] || s.result.friend
-  const waLink = whatsappLink(d, est, WA_NUMBER, s.whatsappMsg)
+  const waLink = whatsappLink(d, toWaQuote(result), WA_NUMBER, s.whatsappMsg)
+
+  // Persist each completed quote once per result view. The ref guard absorbs
+  // StrictMode's double-fired dev effects; leaving step 7 re-arms it so a
+  // revised quote is saved again.
+  const persisted = useRef(false)
+  useEffect(() => {
+    if (step === 7 && !persisted.current) {
+      persisted.current = true
+      void persistence.save(buildQuoteRecord(d, result))
+    }
+    if (step !== 7) persisted.current = false
+  }, [step, d, result])
 
   const showNav = step >= 1 && step <= 6
   const goto = (next: number) => setStep(Math.max(0, Math.min(7, next)))
@@ -82,7 +97,7 @@ export default function App() {
         {step === 6 && <Screen6Review form={form} onEdit={goto} />}
         {step === 7 && (
           <Screen7Result
-            est={est}
+            result={result}
             firstName={firstName}
             priceVisible={SHOW_PRICE}
             waLink={waLink}

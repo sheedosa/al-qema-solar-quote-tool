@@ -1,6 +1,6 @@
 import { C, inputStyle } from '../theme'
 import { Card, SegOption, Stepper, Kicker } from '../components/ui'
-import { PRESETS } from '../logic'
+import { PRESET_NAMES } from '../logic'
 import { BULB_VALS, useStrings, type Strings } from '../i18n'
 import type { QuoteForm } from '../useQuoteForm'
 import type { Appliance } from '../types'
@@ -127,7 +127,7 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
   const lt = d.lighting
 
   const addedNames = d.appliances.map((a) => a.name)
-  const chips = PRESETS.filter((p) => addedNames.indexOf(p.name) === -1)
+  const chips = PRESET_NAMES.filter((name) => addedNames.indexOf(name) === -1)
 
   return (
     <div style={{ animation: 'stepIn 0.35s ease' }}>
@@ -224,11 +224,11 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
           ))}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {chips.map((p) => (
+            {chips.map((name) => (
               <ApplianceChip
-                key={p.name}
-                label={s.opt.preset[p.name] || p.name}
-                onClick={() => addAppliance(p)}
+                key={name}
+                label={s.opt.preset[name] || name}
+                onClick={() => addAppliance(name)}
               />
             ))}
             <ApplianceChip label={s.appliances.addOther} onClick={() => addAppliance(null)} />

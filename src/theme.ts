@@ -13,6 +13,8 @@ export const C = {
   toggleOff: '#CBD2D9',
   green: '#1E7E4F',
   greenTint: '#E7F3ED',
+  amber: '#B45309',
+  amberTint: '#FEF3C7',
 } as const
 
 /** White card surface used throughout the wizard. */
