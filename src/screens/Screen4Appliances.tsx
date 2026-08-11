@@ -189,23 +189,6 @@ export function Screen4Appliances({ form }: { form: QuoteForm }) {
               {s.appliances.bulbHint}
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={smallLabel}>{s.appliances.hoursNight}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.red }}>
-                {lt.nightHours} {s.units.h}
-              </div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={12}
-              step={1}
-              value={lt.nightHours}
-              onChange={(e) => setLight({ nightHours: parseInt(e.target.value, 10) || 0 })}
-              style={{ width: '100%', height: 32 }}
-            />
-          </div>
         </Card>
 
         {/* Appliance builder */}

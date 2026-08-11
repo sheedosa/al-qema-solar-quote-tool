@@ -41,6 +41,45 @@ export type ApplianceDefault = {
   heavy?: boolean
 }
 
+/** A component-list line used by the custom-system BOM builder. */
+export type BomLineSpec = { component: string; qty: number }
+
+/**
+ * How a custom (beyond-packages) system is sized and priced from the retail
+ * component list. Ratios are derived from the client's real invoices.
+ */
+export type CustomBomConfig = {
+  panel: { component: string; watts: number }
+  battery: { component: string; kwhEach: number }
+  inverter: {
+    /** Used when the required inverter kW fits a single unit. */
+    single: { component: string; maxKw: number }
+    /** Otherwise n parallel units of this size. */
+    parallel: { component: string; unitKw: number }
+  }
+  stand: { component: string; panelsPerStand: number }
+  /** Quantities multiplied by the panel count (clamps, cable metres…). */
+  perPanel: BomLineSpec[]
+  /** Quantities multiplied by the inverter count. */
+  perInverter: BomLineSpec[]
+  /** Flat one-off lines (switches, installation, transport…). */
+  fixed: BomLineSpec[]
+  /** The subtotal is rounded UP to this increment. */
+  roundUpToLyd: number
+  /** The custom price never displays below this floor. */
+  minimumLyd: number
+}
+
+export type CustomBomLine = { name: string; qty: number; unitLyd: number; totalLyd: number }
+
+export type CustomBuild = {
+  lines: CustomBomLine[]
+  subtotalLyd: number
+  /** max(subtotal rounded up, minimumLyd) — what the customer sees. */
+  totalLyd: number
+  floorApplied: boolean
+}
+
 export type PricingConfig = {
   configVersion: string
   currency: 'LYD'
@@ -55,11 +94,14 @@ export type PricingConfig = {
   addOns: { name: string; priceLyd: number }[]
   batteryLifespanYears: { liquid: number; lithium: number }
   components: Record<string, number>
+  customBom: CustomBomConfig
   loadDefaults: {
     acWattsPerBtu: { standard: number; inverter: number }
     assumedAcBtu: number
     btuPerTon: number
     lightingWattsByType: { led: number; regular: number; mixed: number }
+    /** Hours/day the lighting runs (also its battery hours). Not user-asked. */
+    lightingHours: number
     fridge: { watts: number; duty: number }
     freezer: { watts: number; duty: number }
     fridgeConditionMultiplier: { new: number; old: number }
@@ -113,33 +155,37 @@ export type ConstraintId = 'inverter' | 'battery' | 'panels' | 'acCount' | 'acBt
 export type WarningId = 'heavyDutyLoad' | 'acBtuExceeded'
 export type AssumptionId = 'acSizeAssumed' | 'lightingAssumed' | 'customApplianceAssumed'
 
+export type SystemSpecs = {
+  inverter: { kva: number; kw: number }
+  panels: { count: number; watts: number; kwp: number }
+  battery: {
+    chemistry: 'liquid' | 'lithium'
+    nominalKwh: number
+    usableKwh: number
+    lifespanYears: number
+  }
+}
+
 export type EngineResult = {
   dailyKwh: number
   nightKwh: number
   peakKw: number
   requiredKwp: number
   recommendedTier: PackageTier | 'CUSTOM'
-  /** null on CUSTOM — the engine never invents a price above the packages. */
-  priceFrom: number | null
+  /** Package price, or the custom BOM total (never below the config floor). */
+  priceFrom: number
   currency: 'LYD'
-  specs: null | {
-    inverter: { kva: number; kw: number }
-    panels: { count: number; watts: number; kwp: number }
-    battery: {
-      chemistry: 'liquid' | 'lithium'
-      nominalKwh: number
-      usableKwh: number
-      lifespanYears: number
-    }
-  }
+  specs: SystemSpecs
   includes: IncludeId[]
-  addOnsAvailable: string[]
+  addOnsAvailable: { name: string; priceLyd: number }[]
   runtimeNote: string
   confidence: 'high' | 'low'
   assumptionsMade: AssumptionId[]
   warnings: WarningId[]
   constraintsBinding: ConstraintId[]
   isCustom: boolean
+  /** Itemized custom build — internal/admin only, never shown to customers. */
+  customBuild: CustomBuild | null
   configVersion: string
   /** Full normalized-load audit trail — persisted with the lead. */
   loads: NormalizedLoad[]
@@ -148,7 +194,7 @@ export type EngineResult = {
 /** The compact quote summary carried into the WhatsApp message. */
 export type WaQuote = {
   tier: string
-  priceFrom: number | null
+  priceFrom: number
   dailyKwh: number
   isCustom: boolean
   configVersion: string

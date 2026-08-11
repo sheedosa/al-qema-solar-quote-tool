@@ -15,7 +15,7 @@ export function initialData(): FormData {
     acUnits: [],
     fridge: { on: true, qty: 1, alwaysOn: true },
     freezer: { on: false, qty: 1, alwaysOn: true },
-    lighting: { type: '', count: 10, watts: '', nightHours: 5 },
+    lighting: { type: '', count: 10, watts: '' },
     appliances: [],
     systemType: 'recommend',
     priority: '',

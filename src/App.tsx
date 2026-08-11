@@ -3,9 +3,9 @@ import { C } from './theme'
 import { SHOW_PRICE, WA_NUMBER } from './config'
 import { useLang } from './i18n'
 import { canContinue, whatsappLink } from './logic'
-import { PRICING_CONFIG } from './pricing/config'
 import { runEngine, toWaQuote } from './pricing/engine'
 import { buildQuoteRecord, persistence } from './pricing/persist'
+import type { PricingConfig } from './pricing/types'
 import { useQuoteForm } from './useQuoteForm'
 import { Header } from './components/Header'
 import { FooterNav } from './components/FooterNav'
@@ -18,9 +18,9 @@ import { Screen5Preferences } from './screens/Screen5Preferences'
 import { Screen6Review } from './screens/Screen6Review'
 import { Screen7Result } from './screens/Screen7Result'
 
-export default function App() {
+export default function App({ cfg }: { cfg: PricingConfig }) {
   const [step, setStep] = useState(0)
-  const { s } = useLang()
+  const { s, lang } = useLang()
   const form = useQuoteForm()
   const d = form.data
 
@@ -43,7 +43,7 @@ export default function App() {
     }
   }, [step])
 
-  const result = useMemo(() => runEngine(d, PRICING_CONFIG), [d])
+  const result = useMemo(() => runEngine(d, cfg), [d, cfg])
   const can = canContinue(d, step)
   const firstName = d.name.trim().split(/\s+/)[0] || s.result.friend
   const waLink = whatsappLink(d, toWaQuote(result), WA_NUMBER, s.whatsappMsg)
@@ -55,10 +55,10 @@ export default function App() {
   useEffect(() => {
     if (step === 7 && !persisted.current) {
       persisted.current = true
-      void persistence.save(buildQuoteRecord(d, result))
+      void persistence.save(buildQuoteRecord(d, result, lang))
     }
     if (step !== 7) persisted.current = false
-  }, [step, d, result])
+  }, [step, d, result, lang])
 
   const showNav = step >= 1 && step <= 6
   const goto = (next: number) => setStep(Math.max(0, Math.min(7, next)))

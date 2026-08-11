@@ -27,7 +27,7 @@ import type { PricingConfig } from './types'
  *     engineer).
  */
 export const PRICING_CONFIG: PricingConfig = {
-  configVersion: 'pricing-2026-08-01.1',
+  configVersion: 'pricing-2026-08-11.1',
   currency: 'LYD',
   acBtuCapMode: 'advisory',
 
@@ -85,6 +85,39 @@ export const PRICING_CONFIG: PricingConfig = {
   addOns: [{ name: 'Battery box (2 batteries)', priceLyd: 350 }],
   batteryLifespanYears: { liquid: 4, lithium: 10 },
 
+  /**
+   * Custom-system (beyond the packages) BOM builder. Component names must
+   * match `components` keys verbatim. Ratios reproduce the client's real
+   * 16/07/2026 invoice exactly (verified by test).
+   */
+  customBom: {
+    panel: { component: 'Jinko 590W', watts: 590 },
+    battery: { component: 'Qmax Lithium 5kW', kwhEach: 5 },
+    inverter: {
+      single: { component: 'Growatt Hommer 5k', maxKw: 5 },
+      parallel: { component: 'Growatt 6000W', unitKw: 6 },
+    },
+    stand: { component: 'Alqema Stand', panelsPerStand: 2 },
+    perPanel: [
+      { component: 'Mounting clamp', qty: 2 },
+      { component: 'DC Cable 2x6mm', qty: 4 },
+      { component: 'AC Cable 2x10mm', qty: 1 },
+    ],
+    perInverter: [{ component: 'MCCB DC Switch', qty: 1 }],
+    fixed: [
+      { component: 'DC Cable 35mm', qty: 10 },
+      { component: 'MTS Switch', qty: 1 },
+      { component: 'Busbar', qty: 1 },
+      { component: 'AC Combiner', qty: 1 },
+      { component: 'Installation', qty: 1 },
+      { component: 'Install consumables', qty: 2 },
+      { component: 'Transport & handling', qty: 1 },
+    ],
+    roundUpToLyd: 500,
+    /** The custom price never displays below this floor (admin-editable). */
+    minimumLyd: 55500,
+  },
+
   /** Retail unit prices — custom/BOM path and invoice reconciliation only. */
   components: {
     'Inverter 1050': 675,
@@ -138,6 +171,8 @@ export const PRICING_CONFIG: PricingConfig = {
     assumedAcBtu: 12000,
     btuPerTon: 12000,
     lightingWattsByType: { led: 10, regular: 60, mixed: 35 },
+    /** Hours/day the lighting runs — the form no longer asks. */
+    lightingHours: 5,
     fridge: { watts: 150, duty: 0.4 },
     freezer: { watts: 200, duty: 0.45 },
     fridgeConditionMultiplier: { new: 1.0, old: 1.3 },

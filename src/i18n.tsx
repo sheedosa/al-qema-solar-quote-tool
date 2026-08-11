@@ -119,7 +119,6 @@ const EN = {
     optional: '(optional)',
     notSure: 'Not sure',
     bulbHint: 'Leave blank if unsure — LED is usually 5–15W.',
-    hoursNight: 'Hours lit at night',
     appliancesTitle: 'Appliances',
     appliancesHint: "Tap to add what you'd like to run. Don't worry about watts — we'll estimate.",
     deviceName: 'Device name',
@@ -188,7 +187,6 @@ const EN = {
     hUnit: 'h',
     bulbsWord: 'bulbs',
     typeWord: 'type —',
-    atNightSuffix: 'at night',
     customDevice: 'Custom device',
     ofFourAdded: 'of 4 added',
     dash: '—',
@@ -207,10 +205,6 @@ const EN = {
     kwhPerDay: 'kWh/day',
     nightNeed: 'Overnight (battery) energy:',
     kwhPerNight: 'kWh/night',
-    dailyShort: 'Daily need',
-    nightShort: 'Overnight need',
-    peakLoad: 'Peak load',
-    kw: 'kW',
     recommendedPackage: 'Recommended package',
     packagePrefix: 'Package ',
     batteryLiquid: 'liquid (lead-acid)',
@@ -227,7 +221,7 @@ const EN = {
     } as Record<string, string>,
     runtimeNote: 'Backup runtime up to 12 hours, depending on devices and usage',
     warrantyNote: '1-year warranty on all parts',
-    addOnLine: 'Optional add-on: battery box (2 batteries) — 350 LYD',
+    addOnLine: (price: string) => 'Optional add-on: battery box (2 batteries) — ' + price + ' LYD',
     termsNote: 'Final scope covers the loads agreed with our engineer.',
     priceRef: 'Pricing ref',
     warningsTitle: 'Please note',
@@ -246,8 +240,10 @@ const EN = {
       customApplianceAssumed: 'Custom device power',
     } as Record<string, string>,
     customTitle: 'You need a tailored system, ',
+    customPackageName: 'Custom system',
     customBody:
-      'Your power needs go beyond our standard packages. Our engineer will design and price a custom system for you on WhatsApp — free of charge.',
+      'Your needs go beyond our standard packages, so we designed a custom system from our component list. Our engineer will confirm the design and final price with you on WhatsApp.',
+    customPriceNote: 'Component-level estimate — our engineer will confirm the final design and price.',
     indicativePrice: 'Indicative price',
     priceFrom: 'From ~',
     lyd: 'LYD',
@@ -352,17 +348,19 @@ const EN = {
     q.isCustom
       ? 'Hello Al Qema! I completed the solar estimate form. My name is ' +
         name +
-        ' — my needs require a custom system (daily need ~' +
+        ' — my needs require a custom system, from ' +
+        q.priceFrom.toLocaleString('en-US') +
+        ' LYD (daily need ~' +
         q.dailyKwh +
         ' kWh). Ref: ' +
         q.configVersion +
-        '. Please have an engineer contact me with a tailored quote.'
+        '. Please have an engineer confirm my tailored quote.'
       : 'Hello Al Qema! I completed the solar estimate form. My name is ' +
         name +
         ' — recommended: Package ' +
         q.tier +
         ', from ' +
-        (q.priceFrom ?? 0).toLocaleString('en-US') +
+        q.priceFrom.toLocaleString('en-US') +
         ' LYD (daily need ~' +
         q.dailyKwh +
         ' kWh). Ref: ' +
@@ -458,7 +456,6 @@ const AR: Strings = {
     optional: '(اختياري)',
     notSure: 'غير متأكد',
     bulbHint: 'اتركه فارغاً إن لم تكن متأكداً — إضاءة LED عادةً 5–15 واط.',
-    hoursNight: 'ساعات الإضاءة ليلاً',
     appliancesTitle: 'الأجهزة',
     appliancesHint: 'اضغط لإضافة ما ترغب في تشغيله. لا تقلق بشأن الواط — سنقوم بالتقدير.',
     deviceName: 'اسم الجهاز',
@@ -527,7 +524,6 @@ const AR: Strings = {
     hUnit: 'س',
     bulbsWord: 'لمبة',
     typeWord: 'النوع —',
-    atNightSuffix: 'ليلاً',
     customDevice: 'جهاز مخصّص',
     ofFourAdded: 'من 4 مضافة',
     dash: '—',
@@ -546,10 +542,6 @@ const AR: Strings = {
     kwhPerDay: 'kWh/يومياً',
     nightNeed: 'الاستهلاك الليلي (البطارية):',
     kwhPerNight: 'kWh/ليلة',
-    dailyShort: 'الاستهلاك اليومي',
-    nightShort: 'الاستهلاك الليلي',
-    peakLoad: 'ذروة الحمل',
-    kw: 'kW',
     recommendedPackage: 'الباقة الموصى بها',
     packagePrefix: 'باقة ',
     batteryLiquid: 'سائلة (رصاص حمضي)',
@@ -566,7 +558,7 @@ const AR: Strings = {
     },
     runtimeNote: 'مدة التشغيل الاحتياطي حتى 12 ساعة حسب الأجهزة والاستخدام',
     warrantyNote: 'ضمان سنة على جميع القطع',
-    addOnLine: 'إضافة اختيارية: صندوق بطاريات (بطاريتان) — 350 د.ل',
+    addOnLine: (price: string) => 'إضافة اختيارية: صندوق بطاريات (بطاريتان) — ' + price + ' د.ل',
     termsNote: 'يشمل النطاق النهائي الأحمال المتفق عليها مع مهندسنا.',
     priceRef: 'مرجع التسعير',
     warningsTitle: 'يرجى الملاحظة',
@@ -584,8 +576,10 @@ const AR: Strings = {
       customApplianceAssumed: 'قدرة الجهاز المخصّص',
     },
     customTitle: 'تحتاج إلى نظام مخصّص، ',
+    customPackageName: 'نظام مخصّص',
     customBody:
-      'احتياجاتك تتجاوز باقاتنا القياسية. سيقوم مهندسنا بتصميم وتسعير نظام مخصّص لك عبر واتساب — مجاناً.',
+      'احتياجاتك تتجاوز باقاتنا القياسية، لذا صمّمنا لك نظاماً مخصّصاً من قائمة مكوّناتنا. سيؤكّد مهندسنا التصميم والسعر النهائي معك عبر واتساب.',
+    customPriceNote: 'تقدير على مستوى المكوّنات — سيؤكّد مهندسنا التصميم والسعر النهائي.',
     indicativePrice: 'السعر التقديري',
     priceFrom: 'ابتداءً من ~',
     lyd: 'د.ل',
@@ -688,17 +682,19 @@ const AR: Strings = {
     q.isCustom
       ? 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
         name +
-        ' — احتياجي يتطلب نظاماً مخصّصاً (استهلاك يومي ~' +
+        ' — احتياجي يتطلب نظاماً مخصّصاً، ابتداءً من ' +
+        q.priceFrom.toLocaleString('en-US') +
+        ' د.ل (استهلاك يومي ~' +
         q.dailyKwh +
         ' kWh). مرجع: ' +
         q.configVersion +
-        '. يرجى تواصل مهندسكم معي لعرض سعر مخصّص.'
+        '. يرجى تأكيد عرض السعر المخصّص مع مهندسكم.'
       : 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
         name +
         ' — الباقة الموصى بها: ' +
         q.tier +
         '، ابتداءً من ' +
-        (q.priceFrom ?? 0).toLocaleString('en-US') +
+        q.priceFrom.toLocaleString('en-US') +
         ' د.ل (استهلاك يومي ~' +
         q.dailyKwh +
         ' kWh). مرجع: ' +

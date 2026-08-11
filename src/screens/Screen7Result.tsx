@@ -83,10 +83,7 @@ export function Screen7Result({
   const r = result
   const specs = r.specs
 
-  const priceText =
-    r.priceFrom !== null
-      ? s.result.priceFrom + r.priceFrom.toLocaleString('en-US') + ' ' + s.result.lyd
-      : ''
+  const priceText = s.result.priceFrom + r.priceFrom.toLocaleString('en-US') + ' ' + s.result.lyd
 
   return (
     <div
@@ -141,138 +138,114 @@ export function Screen7Result({
         </p>
       </div>
 
-      {specs ? (
-        <Card style={{ padding: '24px 20px' }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: C.muted,
-              textAlign: 'center',
-              marginBottom: 6,
-            }}
-          >
-            {s.result.recommendedPackage}
-          </div>
-          <div
-            style={{
-              fontSize: 38,
-              fontWeight: 700,
-              color: C.red,
-              textAlign: 'center',
-              lineHeight: 1.2,
-              marginBottom: 16,
-            }}
-          >
-            {s.result.packagePrefix}
-            {r.recommendedTier}
-          </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
-              gap: 12,
-            }}
-          >
-            <Metric
-              label={s.result.solarPanels}
-              value={specs.panels.kwp.toFixed(2)}
-              unit={s.result.kwpArray}
-              sub={specs.panels.count + ' × ' + specs.panels.watts + ' W'}
-            />
-            <Metric
-              label={s.result.inverter}
-              value={String(specs.inverter.kva)}
-              unit={s.result.kva}
-            />
-            <Metric
-              label={s.result.battery}
-              value={String(specs.battery.nominalKwh)}
-              unit={s.result.kwh}
-              sub={
-                (specs.battery.chemistry === 'liquid'
-                  ? s.result.batteryLiquid
-                  : s.result.batteryLithium) +
-                ' · ' +
-                (specs.battery.lifespanYears === 4
-                  ? s.result.batteryLife4
-                  : s.result.batteryLife10)
-              }
-            />
-          </div>
-          <div
-            style={{
-              textAlign: 'center',
-              marginTop: 14,
-              fontSize: 13.5,
-              fontWeight: 500,
-              color: C.muted,
-            }}
-          >
-            {s.result.dailyNeed}{' '}
-            <span style={{ color: C.body, fontWeight: 700 }}>
-              {'~' + Math.round(r.dailyKwh) + ' ' + s.result.kwhPerDay}
-            </span>
-          </div>
-          <div
-            style={{
-              textAlign: 'center',
-              marginTop: 4,
-              fontSize: 13.5,
-              fontWeight: 500,
-              color: C.muted,
-            }}
-          >
-            {s.result.nightNeed}{' '}
-            <span style={{ color: C.body, fontWeight: 700 }}>
-              {'~' + Math.round(r.nightKwh) + ' ' + s.result.kwhPerNight}
-            </span>
-          </div>
-        </Card>
-      ) : (
-        <>
-          <Card style={{ padding: '24px 20px' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))',
-                gap: 12,
-              }}
-            >
-              <Metric
-                label={s.result.dailyShort}
-                value={'~' + Math.round(r.dailyKwh)}
-                unit={s.result.kwhPerDay}
-              />
-              <Metric label={s.result.peakLoad} value={r.peakKw.toFixed(1)} unit={s.result.kw} />
-              <Metric
-                label={s.result.nightShort}
-                value={'~' + Math.round(r.nightKwh)}
-                unit={s.result.kwhPerNight}
-              />
-            </div>
-          </Card>
-          <div
-            style={{
-              background: C.redTint,
-              borderRadius: 12,
-              padding: '20px 18px',
-              fontSize: 14.5,
-              fontWeight: 500,
-              color: C.body,
-              lineHeight: 1.6,
-              textAlign: 'center',
-              textWrap: 'pretty',
-            }}
-          >
-            {s.result.customBody}
-          </div>
-        </>
+      <Card style={{ padding: '24px 20px' }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: C.muted,
+            textAlign: 'center',
+            marginBottom: 6,
+          }}
+        >
+          {s.result.recommendedPackage}
+        </div>
+        <div
+          style={{
+            fontSize: r.isCustom ? 30 : 38,
+            fontWeight: 700,
+            color: C.red,
+            textAlign: 'center',
+            lineHeight: 1.2,
+            marginBottom: 16,
+          }}
+        >
+          {r.isCustom ? s.result.customPackageName : s.result.packagePrefix + r.recommendedTier}
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
+            gap: 12,
+          }}
+        >
+          <Metric
+            label={s.result.solarPanels}
+            value={specs.panels.kwp.toFixed(2)}
+            unit={s.result.kwpArray}
+            sub={specs.panels.count + ' × ' + specs.panels.watts + ' W'}
+          />
+          <Metric
+            label={s.result.inverter}
+            value={String(specs.inverter.kva)}
+            unit={s.result.kva}
+          />
+          <Metric
+            label={s.result.battery}
+            value={String(specs.battery.nominalKwh)}
+            unit={s.result.kwh}
+            sub={
+              (specs.battery.chemistry === 'liquid'
+                ? s.result.batteryLiquid
+                : s.result.batteryLithium) +
+              ' · ' +
+              (specs.battery.lifespanYears === 4
+                ? s.result.batteryLife4
+                : s.result.batteryLife10)
+            }
+          />
+        </div>
+        <div
+          style={{
+            textAlign: 'center',
+            marginTop: 14,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: C.muted,
+          }}
+        >
+          {s.result.dailyNeed}{' '}
+          <span style={{ color: C.body, fontWeight: 700 }}>
+            {'~' + Math.round(r.dailyKwh) + ' ' + s.result.kwhPerDay}
+          </span>
+        </div>
+        <div
+          style={{
+            textAlign: 'center',
+            marginTop: 4,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: C.muted,
+          }}
+        >
+          {s.result.nightNeed}{' '}
+          <span style={{ color: C.body, fontWeight: 700 }}>
+            {'~' + Math.round(r.nightKwh) + ' ' + s.result.kwhPerNight}
+          </span>
+        </div>
+      </Card>
+
+      {r.isCustom && (
+        <div
+          style={{
+            background: C.redTint,
+            borderRadius: 12,
+            padding: '20px 18px',
+            fontSize: 14.5,
+            fontWeight: 500,
+            color: C.body,
+            lineHeight: 1.6,
+            textAlign: 'center',
+            textWrap: 'pretty',
+          }}
+        >
+          {s.result.customBody}
+        </div>
       )}
 
-      {specs && priceVisible && r.priceFrom !== null && (
+      {priceVisible && (
         <div style={{ background: C.ink, borderRadius: 12, padding: '24px 20px', textAlign: 'center' }}>
           <div
             style={{
@@ -292,6 +265,11 @@ export function Screen7Result({
           <div style={{ fontSize: 13, fontWeight: 400, color: C.faint, marginTop: 6 }}>
             {s.result.priceNote}
           </div>
+          {r.isCustom && (
+            <div style={{ fontSize: 13, fontWeight: 400, color: C.faint, marginTop: 4 }}>
+              {s.result.customPriceNote}
+            </div>
+          )}
           <div style={{ fontSize: 11, fontWeight: 400, color: C.faint, marginTop: 10, opacity: 0.7 }}>
             {s.result.priceRef}: {r.configVersion}
           </div>
@@ -349,7 +327,7 @@ export function Screen7Result({
         </Card>
       )}
 
-      {specs && (
+      {r.includes.length > 0 && (
         <Card>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 12 }}>
             {s.result.includesTitle}
@@ -380,9 +358,11 @@ export function Screen7Result({
             <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
               {s.result.warrantyNote}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
-              {s.result.addOnLine}
-            </div>
+            {r.addOnsAvailable.length > 0 && (
+              <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
+                {s.result.addOnLine(r.addOnsAvailable[0].priceLyd.toLocaleString('en-US'))}
+              </div>
+            )}
             <div style={{ fontSize: 12, fontWeight: 400, color: C.faint }}>
               {s.result.termsNote}
             </div>

@@ -32,21 +32,7 @@ export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
   const lt = d.lighting
   const lightType = lt.type ? s.opt.bulb[lt.type] : R.typeWord
   const appBits: ReviewRow[] = [
-    {
-      k: R.keys.lighting,
-      v:
-        lt.count +
-        ' ' +
-        R.bulbsWord +
-        ' (' +
-        lightType +
-        ')' +
-        R.sep +
-        lt.nightHours +
-        R.hUnit +
-        ' ' +
-        R.atNightSuffix,
-    },
+    { k: R.keys.lighting, v: lt.count + ' ' + R.bulbsWord + ' (' + lightType + ')' },
   ]
   d.appliances.forEach((a) => {
     const name = a.custom ? a.name || R.customDevice : s.opt.preset[a.name] || a.name

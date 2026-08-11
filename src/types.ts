@@ -19,7 +19,6 @@ export type Lighting = {
   type: '' | 'led' | 'regular' | 'mixed'
   count: number
   watts: string
-  nightHours: number
 }
 
 export type Appliance = {

@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { canContinue, initialData, makeAc, makeAppliance, PRESET_NAMES, whatsappLink } from '../logic'
 import type { AcUnit, FormData } from '../types'
 import { PRICING_CONFIG } from './config'
-import { bomTotal, runEngine, toWaQuote } from './engine'
-import type { PricingConfig } from './types'
+import { bomTotal, priceCustomBom, runEngine, toWaQuote } from './engine'
+import { validatePricingConfig } from './validate'
+import type { Demand, PricingConfig } from './types'
 
 /** Base fixture: fresh form + known LED lighting (fridge on, freezer off). */
 const base = (): FormData => {
@@ -94,8 +95,8 @@ describe('3. AC gating', () => {
   })
 })
 
-describe('4. Ceiling — never price above XXL', () => {
-  it('3+ ACs → CUSTOM in both modes, no invented price', () => {
+describe('4. Custom pricing + floor', () => {
+  it('3+ ACs → CUSTOM with a BOM price, floored at the config minimum', () => {
     const d: FormData = {
       ...base(),
       acUnits: [ac({ capValue: '9000' }), ac({ capValue: '9000' }), ac({ capValue: '9000' })],
@@ -104,9 +105,15 @@ describe('4. Ceiling — never price above XXL', () => {
       const r = runEngine(d, cfg)
       expect(r.recommendedTier).toBe('CUSTOM')
       expect(r.isCustom).toBe(true)
-      expect(r.priceFrom).toBeNull()
-      expect(r.specs).toBeNull()
+      // 8 panels 8,800 + 4 batteries 30,000 + Hommer 3,350 + BoS = 54,300
+      expect(r.customBuild!.subtotalLyd).toBe(54300)
+      expect(r.customBuild!.floorApplied).toBe(true)
+      expect(r.priceFrom).toBe(55500) // rounded 54,500 → floored to the minimum
+      expect(r.specs.panels.count).toBe(8)
+      expect(r.specs.battery.nominalKwh).toBe(20)
+      expect(r.specs.battery.chemistry).toBe('lithium')
       expect(r.constraintsBinding).toContain('acCount')
+      expect(r.includes).toEqual([])
     }
   })
 })
@@ -131,11 +138,14 @@ describe('5. Monotonicity — more load never yields a smaller tier or price', (
     ]
     const results = ladder.map((d) => runEngine(d, PRICING_CONFIG))
     expect(results.map((r) => r.recommendedTier)).toEqual(['S', 'S', 'L', 'XL', 'CUSTOM'])
+    // The CUSTOM rung now carries a real BOM price: 10 panels + 6 batteries + Hommer.
+    expect(results[4].priceFrom).toBe(72500)
+    expect(results[4].customBuild!.floorApplied).toBe(false)
     for (let i = 1; i < results.length; i++) {
       const prev = results[i - 1]
       const cur = results[i]
       expect(TIER_RANK[cur.recommendedTier]).toBeGreaterThanOrEqual(TIER_RANK[prev.recommendedTier])
-      expect(cur.priceFrom ?? Infinity).toBeGreaterThanOrEqual(prev.priceFrom ?? Infinity)
+      expect(cur.priceFrom).toBeGreaterThanOrEqual(prev.priceFrom)
     }
   })
 })
@@ -196,5 +206,147 @@ describe('8. Config integrity', () => {
     for (const name of PRESET_NAMES) {
       expect(PRICING_CONFIG.loadDefaults.appliancesByName[name], name).toBeDefined()
     }
+  })
+})
+
+describe('9. Custom BOM composition', () => {
+  const demand = (over: Partial<Demand>): Demand => ({
+    dailyKwh: 0,
+    nightKwh: 0,
+    peakW: 0,
+    inverterKw: 0,
+    requiredKwp: 0,
+    requiredUsableKwh: 0,
+    ...over,
+  })
+
+  it('reproduces the client invoice for the matching demand', () => {
+    const { build } = priceCustomBom(
+      demand({ inverterKw: 15, requiredKwp: 17.5, requiredUsableKwh: 8 }),
+      PRICING_CONFIG,
+    )
+    const byName = Object.fromEntries(build.lines.map((l) => [l.name, l.qty]))
+    expect(byName).toEqual({
+      'Jinko 590W': 30,
+      'Qmax Lithium 5kW': 2,
+      'Growatt 6000W': 3,
+      'Alqema Stand': 15,
+      'Mounting clamp': 60,
+      'DC Cable 2x6mm': 120,
+      'AC Cable 2x10mm': 30,
+      'MCCB DC Switch': 3,
+      'DC Cable 35mm': 10,
+      'MTS Switch': 1,
+      'Busbar': 1,
+      'AC Combiner': 1,
+      'Installation': 1,
+      'Install consumables': 2,
+      'Transport & handling': 1,
+    })
+    expect(build.subtotalLyd).toBe(84300) // exactly the 16/07/2026 quotation
+    expect(build.totalLyd).toBe(84500) // rounded up to 500
+    expect(build.floorApplied).toBe(false)
+  })
+
+  it('always includes at least one panel and one battery', () => {
+    const { build, specs } = priceCustomBom(demand({}), PRICING_CONFIG)
+    expect(specs.panels.count).toBe(1)
+    expect(specs.battery.nominalKwh).toBe(5)
+    expect(build.totalLyd).toBe(PRICING_CONFIG.customBom.minimumLyd)
+  })
+
+  it('selects the single inverter at or below its kW limit', () => {
+    const single = priceCustomBom(demand({ inverterKw: 5 }), PRICING_CONFIG)
+    expect(single.build.lines.some((l) => l.name === 'Growatt Hommer 5k')).toBe(true)
+    const parallel = priceCustomBom(demand({ inverterKw: 5.1 }), PRICING_CONFIG)
+    expect(parallel.build.lines.some((l) => l.name === 'Growatt 6000W' && l.qty === 1)).toBe(true)
+  })
+})
+
+describe('10. Power-cut priority drives battery sizing', () => {
+  it("'essentials' excludes ACs from the battery → smaller tier", () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '12000' })],
+      priority: 'essentials',
+    }
+    const r = runEngine(d, PRICING_CONFIG)
+    expect(r.nightKwh).toBeCloseTo(1.22, 2) // AC no longer counts at night
+    expect(r.dailyKwh).toBeCloseTo(9.14, 2) // …but still counts by day
+    expect(r.recommendedTier).toBe('M')
+    expect(r.priceFrom).toBe(15417)
+  })
+
+  it("'essentials_ac' keeps only the N largest ACs on the battery", () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '9000' }), ac({ capValue: '18000' })],
+      priority: 'essentials_ac',
+      priorityAcCount: 1,
+    }
+    const r = runEngine(d, PRICING_CONFIG)
+    expect(r.nightKwh).toBeCloseTo(12.02, 2) // 1.22 + the 18k unit (1800W × 6h)
+    expect(r.recommendedTier).toBe('XL')
+
+    const full = runEngine({ ...d, priority: 'full' }, PRICING_CONFIG)
+    expect(full.nightKwh).toBeCloseTo(17.42, 2)
+    expect(full.recommendedTier).toBe('XXL')
+  })
+
+  it('unanswered priority behaves exactly like full power', () => {
+    const d: FormData = { ...base(), acUnits: [ac({ capValue: '12000' })] }
+    const unanswered = runEngine({ ...d, priority: '' }, PRICING_CONFIG)
+    const full = runEngine({ ...d, priority: 'full' }, PRICING_CONFIG)
+    expect(unanswered).toEqual(full)
+  })
+
+  it("3 ACs with 'essentials' is still CUSTOM — the AC-count cap is hard", () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '9000' }), ac({ capValue: '9000' }), ac({ capValue: '9000' })],
+      priority: 'essentials',
+    }
+    expect(runEngine(d, PRICING_CONFIG).recommendedTier).toBe('CUSTOM')
+  })
+})
+
+describe('11. Config validator', () => {
+  const clone = (): unknown => JSON.parse(JSON.stringify(PRICING_CONFIG))
+
+  it('accepts the bundled config', () => {
+    expect(validatePricingConfig(clone()).ok).toBe(true)
+  })
+
+  const breakCases: [string, (c: any) => void][] = [
+    ['4 packages only', (c) => c.packages.pop()],
+    ['tiers out of order', (c) => ([c.packages[2], c.packages[3]] = [c.packages[3], c.packages[2]])],
+    ['negative price', (c) => (c.packages[0].priceLyd = -1)],
+    ['NaN panel watts', (c) => (c.packages[1].panel.watts = NaN)],
+    ['decreasing prices', (c) => (c.packages[4].priceLyd = 1)],
+    ['unknown BOM component', (c) => (c.customBom.fixed[0].component = 'No Such Part')],
+    ['zero floor', (c) => (c.customBom.minimumLyd = 0)],
+    ['missing lightingHours', (c) => delete c.loadDefaults.lightingHours],
+    ['liquid battery missing ampHours', (c) => delete c.packages[0].battery.ampHours],
+  ]
+  for (const [label, mutate] of breakCases) {
+    it('rejects: ' + label, () => {
+      const c = clone() as any
+      mutate(c)
+      const v = validatePricingConfig(c)
+      expect(v.ok).toBe(false)
+      if (!v.ok) expect(v.errors.length).toBeGreaterThan(0)
+    })
+  }
+})
+
+describe('12. WhatsApp custom price', () => {
+  it('the custom quote carries its price into the message summary', () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '9000' }), ac({ capValue: '9000' }), ac({ capValue: '9000' })],
+    }
+    const q = toWaQuote(runEngine(d, PRICING_CONFIG))
+    expect(q.isCustom).toBe(true)
+    expect(q.priceFrom).toBe(55500)
   })
 })

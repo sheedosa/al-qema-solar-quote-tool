@@ -2,11 +2,14 @@ import type { FormData } from '../types'
 import type {
   AssumptionId,
   ConstraintId,
+  CustomBomLine,
+  CustomBuild,
   Demand,
   EngineResult,
   NormalizedLoad,
   Package,
   PricingConfig,
+  SystemSpecs,
   WaQuote,
   WarningId,
 } from './types'
@@ -106,7 +109,7 @@ export function normalizeLoads(d: FormData, cfg: PricingConfig): NormalizedLoad[
       category: 'lighting',
       watts,
       qty: d.lighting.count,
-      hoursPerDay: d.lighting.nightHours || 0,
+      hoursPerDay: ld.lightingHours,
       runAtNight: true,
       alwaysOn: false,
       heavyDuty: false,
@@ -150,8 +153,16 @@ export function normalizeLoads(d: FormData, cfg: PricingConfig): NormalizedLoad[
   return loads
 }
 
-/** Steps 2–5 — energy demand, peak power, battery and array requirements. */
-export function computeDemand(loads: NormalizedLoad[], cfg: PricingConfig): Demand {
+/**
+ * Steps 2–5 — energy demand, peak power, battery and array requirements.
+ * `nightExcludedIds` removes loads from the BATTERY sizing only (the customer
+ * won't run them during a cut) — their daily energy and peak power still count.
+ */
+export function computeDemand(
+  loads: NormalizedLoad[],
+  cfg: PricingConfig,
+  nightExcludedIds?: ReadonlySet<string>,
+): Demand {
   const sz = cfg.sizing
   let dailyKwh = 0
   let nightKwh = 0
@@ -160,12 +171,10 @@ export function computeDemand(loads: NormalizedLoad[], cfg: PricingConfig): Dema
 
   for (const l of loads) {
     dailyKwh += (l.watts * l.qty * l.hoursPerDay) / 1000
-    if (l.runAtNight || l.alwaysOn) {
+    if ((l.runAtNight || l.alwaysOn) && !nightExcludedIds?.has(l.id)) {
       const nightHours = l.alwaysOn
         ? sz.alwaysOnNightHours
-        : l.category === 'lighting'
-          ? l.hoursPerDay // the lighting slider IS the night-hours question
-          : Math.min(l.hoursPerDay, sz.alwaysOnNightHours)
+        : Math.min(l.hoursPerDay, sz.alwaysOnNightHours)
       nightKwh += (l.watts * l.qty * nightHours) / 1000
     }
     // ACs count at full watts — they genuinely run together. Everything else
@@ -182,6 +191,96 @@ export function computeDemand(loads: NormalizedLoad[], cfg: PricingConfig): Dema
     inverterKw: (peakW * sz.inverterSafetyFactor) / 1000,
     requiredKwp: dailyKwh / (sz.peakSunHours * sz.systemEfficiency),
     requiredUsableKwh: nightKwh,
+  }
+}
+
+/**
+ * Which loads the power-cut priority answer removes from BATTERY sizing.
+ * 'essentials' → all ACs; 'essentials_ac' → all but the N largest-BTU
+ * night-running ACs (conservative: the biggest units count); 'full' or
+ * unanswered → nothing (undefined).
+ */
+export function nightPriorityExclusions(
+  d: FormData,
+  loads: NormalizedLoad[],
+): ReadonlySet<string> | undefined {
+  const acs = loads.filter((l) => l.category === 'ac')
+  if (d.priority === 'essentials') {
+    return new Set(acs.map((l) => l.id))
+  }
+  if (d.priority === 'essentials_ac') {
+    const keep = Math.max(1, d.priorityAcCount)
+    const nightAcs = acs
+      .filter((l) => l.runAtNight)
+      .slice()
+      .sort((a, b) => (b.btu ?? 0) - (a.btu ?? 0))
+    return new Set(nightAcs.slice(keep).map((l) => l.id))
+  }
+  return undefined
+}
+
+/**
+ * Size and price a custom (beyond-packages) system as a bill of materials
+ * from the retail component list. Throws on a component name missing from
+ * `cfg.components` — the config validator prevents that in practice.
+ */
+export function priceCustomBom(
+  demand: Demand,
+  cfg: PricingConfig,
+): { build: CustomBuild; specs: SystemSpecs } {
+  const cb = cfg.customBom
+  const rate = (name: string): number => {
+    const r = cfg.components[name]
+    if (r === undefined) throw new Error('Unknown component: ' + name)
+    return r
+  }
+
+  const panels = Math.max(1, Math.ceil((demand.requiredKwp * 1000) / cb.panel.watts))
+  const usablePerBattery = cb.battery.kwhEach * cfg.sizing.dodByChemistry.lithium
+  const batteries = Math.max(1, Math.ceil(demand.requiredUsableKwh / usablePerBattery))
+  const single = demand.inverterKw <= cb.inverter.single.maxKw
+  const inverterCount = single ? 1 : Math.ceil(demand.inverterKw / cb.inverter.parallel.unitKw)
+  const inverterName = single ? cb.inverter.single.component : cb.inverter.parallel.component
+  const inverterKw = single ? cb.inverter.single.maxKw : inverterCount * cb.inverter.parallel.unitKw
+  const stands = Math.ceil(panels / cb.stand.panelsPerStand)
+
+  const lines: CustomBomLine[] = []
+  const add = (name: string, qty: number) => {
+    const unitLyd = rate(name)
+    lines.push({ name, qty, unitLyd, totalLyd: unitLyd * qty })
+  }
+
+  add(cb.panel.component, panels)
+  add(cb.battery.component, batteries)
+  add(inverterName, inverterCount)
+  add(cb.stand.component, stands)
+  for (const item of cb.perPanel) add(item.component, item.qty * panels)
+  for (const item of cb.perInverter) add(item.component, item.qty * inverterCount)
+  for (const item of cb.fixed) add(item.component, item.qty)
+
+  const subtotalLyd = lines.reduce((sum, l) => sum + l.totalLyd, 0)
+  const rounded = Math.ceil(subtotalLyd / cb.roundUpToLyd) * cb.roundUpToLyd
+  const totalLyd = Math.max(rounded, cb.minimumLyd)
+
+  return {
+    build: { lines, subtotalLyd, totalLyd, floorApplied: rounded < cb.minimumLyd },
+    specs: {
+      inverter: {
+        kw: inverterKw,
+        kva: round2(inverterKw / cfg.sizing.kvaToKw),
+      },
+      panels: {
+        count: panels,
+        watts: cb.panel.watts,
+        kwp: round2((panels * cb.panel.watts) / 1000),
+      },
+      battery: {
+        chemistry: 'lithium',
+        nominalKwh: round2(batteries * cb.battery.kwhEach),
+        usableKwh: round2(batteries * usablePerBattery),
+        lifespanYears: cfg.batteryLifespanYears.lithium,
+      },
+    },
   }
 }
 
@@ -210,7 +309,7 @@ function failedConstraints(
 /** Steps 6–8 — tier match, custom fallback, guardrails. */
 export function runEngine(d: FormData, cfg: PricingConfig): EngineResult {
   const loads = normalizeLoads(d, cfg)
-  const demand = computeDemand(loads, cfg)
+  const demand = computeDemand(loads, cfg, nightPriorityExclusions(d, loads))
   const acLoads = loads.filter((l) => l.category === 'ac')
 
   let matched: Package | null = null
@@ -243,13 +342,16 @@ export function runEngine(d: FormData, cfg: PricingConfig): EngineResult {
     assumptionsMade.push('customApplianceAssumed')
   }
 
+  // Custom fallback: size and price a bespoke build from the component list.
+  const custom = matched ? null : priceCustomBom(demand, cfg)
+
   return {
     dailyKwh: round2(demand.dailyKwh),
     nightKwh: round2(demand.nightKwh),
     peakKw: round2(demand.peakW / 1000),
     requiredKwp: round2(demand.requiredKwp),
     recommendedTier: matched ? matched.tier : 'CUSTOM',
-    priceFrom: matched ? matched.priceLyd : null,
+    priceFrom: matched ? matched.priceLyd : custom!.build.totalLyd,
     currency: cfg.currency,
     specs: matched
       ? {
@@ -269,15 +371,18 @@ export function runEngine(d: FormData, cfg: PricingConfig): EngineResult {
             lifespanYears: cfg.batteryLifespanYears[matched.battery.chemistry],
           },
         }
-      : null,
+      : custom!.specs,
     includes: matched ? cfg.includes : [],
-    addOnsAvailable: matched ? cfg.addOns.map((a) => a.name) : [],
+    addOnsAvailable: matched
+      ? cfg.addOns.map((a) => ({ name: a.name, priceLyd: a.priceLyd }))
+      : [],
     runtimeNote: 'upTo12h',
     confidence: assumptionsMade.length > 0 ? 'low' : 'high',
     assumptionsMade,
     warnings,
     constraintsBinding: binding,
     isCustom: !matched,
+    customBuild: custom ? custom.build : null,
     configVersion: cfg.configVersion,
     loads,
   }
