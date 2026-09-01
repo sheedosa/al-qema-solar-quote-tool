@@ -146,7 +146,6 @@ export function Screen5Preferences({ form }: { form: QuoteForm }) {
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         onChange={(e) => fileUrl(e, (url) => setPhoto(key, url))}
                         style={{ display: 'none' }}
                       />

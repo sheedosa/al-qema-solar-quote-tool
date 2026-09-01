@@ -2,6 +2,8 @@ import { C, inputStyle } from '../theme'
 import { Card, Kicker } from '../components/ui'
 import { PROPERTY_ICON_KEY, PropertyIcon } from '../components/PropertyIcon'
 import { PROPERTY_VALS, useStrings } from '../i18n'
+import { normalizeLibyanPhone } from '../logic'
+import { FIELD_LIMITS } from '../pricing/persist'
 import type { QuoteForm } from '../useQuoteForm'
 
 const labelStyle: React.CSSProperties = { fontSize: 15, fontWeight: 500 }
@@ -62,8 +64,13 @@ export function Screen1Details({ form }: { form: QuoteForm }) {
               type="tel"
               inputMode="tel"
               value={d.whatsapp}
-              onChange={(e) => setD({ whatsapp: e.target.value })}
+              // Normalise as they type: a pasted +218 or a leading 0 becomes
+              // the plain national number rather than reaching the sales team
+              // as an uncallable string.
+              onChange={(e) => setD({ whatsapp: normalizeLibyanPhone(e.target.value) })}
               placeholder={s.details.waPlaceholder}
+              autoComplete="tel-national"
+              maxLength={FIELD_LIMITS.whatsapp}
               style={{ ...inputStyle, flex: 1 }}
             />
           </div>

@@ -156,7 +156,6 @@ function AcRow({
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={(e) => fileUrl(e, (url) => setAc(index, { photo: url }))}
                 style={{ display: 'none' }}
               />
@@ -343,7 +342,7 @@ export function Screen3Cooling({ form }: { form: QuoteForm }) {
         </Card>
 
         {d.acUnits.map((u, i) => (
-          <AcRow key={i} u={u} index={i} form={form} s={s} />
+          <AcRow key={u.id} u={u} index={i} form={form} s={s} />
         ))}
 
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

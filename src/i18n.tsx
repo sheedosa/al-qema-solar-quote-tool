@@ -8,6 +8,37 @@ import {
 } from 'react'
 import type { WaQuote } from './pricing/types'
 
+/**
+ * Context the sales engineer needs but the message used to omit entirely:
+ * where the customer is, what kind of property, how many ACs, and — most
+ * importantly — the free text they wrote on the review screen, which was
+ * collected under "anything else we should know?" and then never shown to
+ * anyone who could act on it.
+ *
+ * Capped because the whole message ends up percent-encoded in a wa.me URL.
+ */
+const NOTES_IN_MESSAGE = 400
+
+const waContextEn = (q: WaQuote): string => {
+  const bits: string[] = []
+  if (q.city) bits.push('City: ' + q.city)
+  if (q.propertyType) bits.push('Property: ' + q.propertyType)
+  if (q.acCount > 0) bits.push('AC units: ' + q.acCount)
+  let out = bits.length ? '\n' + bits.join(' · ') : ''
+  if (q.notes.trim()) out += '\nNotes: ' + q.notes.trim().slice(0, NOTES_IN_MESSAGE)
+  return out
+}
+
+const waContextAr = (q: WaQuote): string => {
+  const bits: string[] = []
+  if (q.city) bits.push('المدينة: ' + q.city)
+  if (q.propertyType) bits.push('نوع المكان: ' + q.propertyType)
+  if (q.acCount > 0) bits.push('عدد المكيّفات: ' + q.acCount)
+  let out = bits.length ? '\n' + bits.join(' · ') : ''
+  if (q.notes.trim()) out += '\nملاحظات: ' + q.notes.trim().slice(0, NOTES_IN_MESSAGE)
+  return out
+}
+
 export type Lang = 'ar' | 'en'
 
 /* ------------------------------------------------------------------ *
@@ -365,7 +396,8 @@ const EN = {
         q.dailyKwh +
         ' kWh), so the form could not price them. Ref: ' +
         q.configVersion +
-        '. Please arrange a site survey.'
+        '. Please arrange a site survey.' +
+        waContextEn(q)
       : q.isCustom
       ? 'Hello Al Qema! I completed the solar estimate form. My name is ' +
         name +
@@ -375,7 +407,8 @@ const EN = {
         q.dailyKwh +
         ' kWh). Ref: ' +
         q.configVersion +
-        '. Please have an engineer confirm my tailored quote.'
+        '. Please have an engineer confirm my tailored quote.' +
+        waContextEn(q)
       : 'Hello Al Qema! I completed the solar estimate form. My name is ' +
         name +
         ' — recommended: Package ' +
@@ -386,7 +419,8 @@ const EN = {
         q.dailyKwh +
         ' kWh). Ref: ' +
         q.configVersion +
-        '. Please send my detailed quote.',
+        '. Please send my detailed quote.' +
+        waContextEn(q),
 }
 
 export type Strings = typeof EN
@@ -717,7 +751,8 @@ const AR: Strings = {
         q.dailyKwh +
         ' kWh)، ولم يتمكن النموذج من تسعيره. مرجع: ' +
         q.configVersion +
-        '. يرجى ترتيب معاينة للموقع.'
+        '. يرجى ترتيب معاينة للموقع.' +
+        waContextAr(q)
       : q.isCustom
       ? 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
         name +
@@ -727,7 +762,8 @@ const AR: Strings = {
         q.dailyKwh +
         ' kWh). مرجع: ' +
         q.configVersion +
-        '. يرجى تأكيد عرض السعر المخصّص مع مهندسكم.'
+        '. يرجى تأكيد عرض السعر المخصّص مع مهندسكم.' +
+        waContextAr(q)
       : 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
         name +
         ' — الباقة الموصى بها: ' +
@@ -738,7 +774,8 @@ const AR: Strings = {
         q.dailyKwh +
         ' kWh). مرجع: ' +
         q.configVersion +
-        '. يرجى إرسال عرض السعر المفصّل.',
+        '. يرجى إرسال عرض السعر المفصّل.' +
+        waContextAr(q),
 }
 
 const BUNDLES: Record<Lang, Strings> = { en: EN, ar: AR }

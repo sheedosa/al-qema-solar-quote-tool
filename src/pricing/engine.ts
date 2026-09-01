@@ -524,8 +524,12 @@ export function runEngine(d: FormData, cfg: PricingConfig): EngineResult {
 }
 
 /** Compact summary for the WhatsApp message. */
-export function toWaQuote(r: EngineResult): WaQuote {
+export function toWaQuote(r: EngineResult, d?: FormData): WaQuote {
   return {
+    city: d?.city ?? '',
+    propertyType: d?.propertyType ?? '',
+    acCount: d?.acUnits.length ?? 0,
+    notes: d?.notes ?? '',
     tier: r.recommendedTier,
     priceFrom: r.priceFrom,
     // One decimal: Math.round() sent "0 kWh" for a 0.4 kWh/day quote.

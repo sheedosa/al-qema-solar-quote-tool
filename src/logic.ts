@@ -28,8 +28,9 @@ export function initialData(): FormData {
 }
 
 /** A fresh AC unit row. */
-export function makeAc(): AcUnit {
+export function makeAc(id = 1): AcUnit {
   return {
+    id,
     capValue: '',
     dontKnow: false,
     model: '',
@@ -69,13 +70,41 @@ export function makeAppliance(id: number, name: string | null): Appliance {
   }
 }
 
+/**
+ * Reduce whatever the customer typed to the Libyan national number.
+ *
+ * The field sits next to a fixed `+218` prefix, but people still type the
+ * country code, a leading zero, or both. Storing it raw meant the sales team
+ * received ambiguous strings and the admin panel built dead wa.me links by
+ * prepending 218 a second time.
+ */
+export function normalizeLibyanPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('00218')) digits = digits.slice(5)
+  else if (digits.startsWith('218')) digits = digits.slice(3)
+  if (digits.startsWith('0')) digits = digits.replace(/^0+/, '')
+  return digits.slice(0, 12)
+}
+
+/** Libyan mobile numbers are 9 digits and start with 9 (091…, 092…, 094…). */
+export function isValidLibyanMobile(raw: string): boolean {
+  const n = normalizeLibyanPhone(raw)
+  return /^9\d{8}$/.test(n)
+}
+
+/** E.164 for display and for the WhatsApp handoff. */
+export function formatPhoneE164(raw: string): string {
+  return '+218' + normalizeLibyanPhone(raw)
+}
+
 /** Whether the current step's required fields are satisfied. */
 export function canContinue(d: FormData, step: number): boolean {
   if (step === 1) {
-    const digits = d.whatsapp.replace(/\D/g, '')
     return (
       d.name.trim().length >= 2 &&
-      digits.length >= 8 &&
+      // Was `digits.length >= 8`, which accepted "0912345678" and turned it
+      // into "+218 0912345678" — a number nobody could call.
+      isValidLibyanMobile(d.whatsapp) &&
       d.propertyType !== '' &&
       (d.propertyType !== 'Other' || d.propertyOther.trim() !== '') &&
       d.city.trim() !== ''

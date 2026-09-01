@@ -2,6 +2,7 @@ import { C } from '../theme'
 import { Card, Kicker } from '../components/ui'
 import { buildReviewGroups } from '../review'
 import { useStrings } from '../i18n'
+import { FIELD_LIMITS } from '../pricing/persist'
 import type { QuoteForm } from '../useQuoteForm'
 
 export function Screen6Review({
@@ -35,6 +36,7 @@ export function Screen6Review({
             rows={3}
             value={d.notes}
             onChange={(e) => setD({ notes: e.target.value })}
+            maxLength={FIELD_LIMITS.notes}
             placeholder={s.review.notesPlaceholder}
             style={{
               padding: '12px 14px',

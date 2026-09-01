@@ -243,4 +243,11 @@ export type WaQuote = {
   dailyKwh: number
   isCustom: boolean
   configVersion: string
+  /** Context the sales engineer needs before calling back. */
+  city: string
+  propertyType: string
+  acCount: number
+  /** The customer's own free text. Collected on the review screen and, until
+   *  now, never carried anywhere the engineer would read it. */
+  notes: string
 }

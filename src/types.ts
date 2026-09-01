@@ -1,4 +1,10 @@
 export type AcUnit = {
+  /**
+   * Stable identity for React keys. Rows hold an uncontrolled file input, so
+   * keying by array index made a removed row hand its DOM node — and its stale
+   * file selection — to the row that shifted into its place.
+   */
+  id: number
   /** '' | '9000' | '12000' | '18000' | '24000' | '32000' — BTU, chosen from fixed options. */
   capValue: string
   dontKnow: boolean

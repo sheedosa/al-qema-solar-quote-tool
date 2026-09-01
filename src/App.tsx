@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { C } from './theme'
 import { SHOW_PRICE, WA_NUMBER } from './config'
 import { useLang } from './i18n'
@@ -6,6 +6,7 @@ import { canContinue, whatsappLink } from './logic'
 import { runEngine, toWaQuote } from './pricing/engine'
 import { buildQuoteRecord, persistence } from './pricing/persist'
 import type { PricingConfig } from './pricing/types'
+import { clearSession, loadSession, saveSession } from './session'
 import { useQuoteForm } from './useQuoteForm'
 import { Header } from './components/Header'
 import { FooterNav } from './components/FooterNav'
@@ -19,9 +20,12 @@ import { Screen6Review } from './screens/Screen6Review'
 import { Screen7Result } from './screens/Screen7Result'
 
 export default function App({ cfg }: { cfg: PricingConfig }) {
-  const [step, setStep] = useState(0)
+  // Restored once, synchronously, so the first paint is already the right step
+  // rather than flashing the welcome screen before jumping.
+  const restored = useRef(loadSession()).current
+  const [step, setStep] = useState(restored?.step ?? 0)
   const { s, lang } = useLang()
-  const form = useQuoteForm()
+  const form = useQuoteForm(restored?.data)
   const d = form.data
 
   const stepTitles = [
@@ -43,25 +47,82 @@ export default function App({ cfg }: { cfg: PricingConfig }) {
     }
   }, [step])
 
+  // Keep progress across a reload or a tab eviction. Four minutes of answers
+  // used to vanish on refresh.
+  useEffect(() => {
+    saveSession(step, d)
+  }, [step, d])
+
+  /**
+   * `stepRef` mirrors `step` so navigation can compare against the current
+   * value without a dependency. The history push must NOT live inside the
+   * setState updater: React double-invokes updaters in StrictMode, which
+   * pushed two entries per navigation and left the back button appearing to
+   * do nothing (it returned to the duplicate entry for the same step).
+   */
+  const stepRef = useRef(step)
+  stepRef.current = step
+
+  /**
+   * Give each step its own history entry so the device back button walks the
+   * wizard instead of leaving the site. Without this, Android back at step 5
+   * abandoned the form entirely.
+   */
+  useEffect(() => {
+    window.history.replaceState({ alqemaStep: step }, '')
+    const onPop = (e: PopStateEvent) => {
+      const target = (e.state as { alqemaStep?: number } | null)?.alqemaStep
+      const next = typeof target === 'number' ? target : 0
+      stepRef.current = next
+      setStep(next)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // Runs once: the handler reads the event, not the closed-over step.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const result = useMemo(() => runEngine(d, cfg), [d, cfg])
   const can = canContinue(d, step)
   const firstName = d.name.trim().split(/\s+/)[0] || s.result.friend
-  const waLink = whatsappLink(d, toWaQuote(result), WA_NUMBER, s.whatsappMsg)
+  const waLink = whatsappLink(d, toWaQuote(result, d), WA_NUMBER, s.whatsappMsg)
 
-  // Persist each completed quote once per result view. The ref guard absorbs
-  // StrictMode's double-fired dev effects; leaving step 7 re-arms it so a
-  // revised quote is saved again.
-  const persisted = useRef(false)
+  /**
+   * Persist each completed quote once. The guard is keyed on the quote's own
+   * content rather than a boolean: a plain flag was re-armed every time the
+   * customer left step 7, so "Start over" followed by walking forward again
+   * inserted a second, duplicate lead for the same person.
+   */
+  const persistedKey = useRef<string | null>(null)
   useEffect(() => {
-    if (step === 7 && !persisted.current) {
-      persisted.current = true
-      void persistence.save(buildQuoteRecord(d, result, lang))
-    }
-    if (step !== 7) persisted.current = false
+    if (step !== 7) return
+    const key = d.whatsapp + '|' + d.name + '|' + result.recommendedTier + '|' + result.priceFrom
+    if (persistedKey.current === key) return
+    persistedKey.current = key
+    void persistence.save(buildQuoteRecord(d, result, lang))
   }, [step, d, result, lang])
 
   const showNav = step >= 1 && step <= 6
-  const goto = (next: number) => setStep(Math.max(0, Math.min(7, next)))
+
+  const goto = useCallback((next: number) => {
+    const target = Math.max(0, Math.min(7, next))
+    if (target === stepRef.current) return
+    window.history.pushState({ alqemaStep: target }, '')
+    stepRef.current = target
+    setStep(target)
+  }, [])
+
+  /**
+   * Start over must actually start over. It used to call goto(0) alone, so on
+   * a shared or showroom device the next customer walked into the previous
+   * one's name, phone number and answers.
+   */
+  const startOver = useCallback(() => {
+    form.reset()
+    clearSession()
+    persistedKey.current = null
+    goto(0)
+  }, [form, goto])
 
   return (
     <div
@@ -101,7 +162,7 @@ export default function App({ cfg }: { cfg: PricingConfig }) {
             firstName={firstName}
             priceVisible={SHOW_PRICE}
             waLink={waLink}
-            onStartOver={() => goto(0)}
+            onStartOver={startOver}
           />
         )}
       </main>

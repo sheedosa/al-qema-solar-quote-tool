@@ -39,9 +39,16 @@ export async function loadActiveConfig(timeoutMs = 3000): Promise<LoadedConfig> 
         signal: controller.signal,
       },
     )
+    // clearTimeout used to run HERE, before the body was read — so the abort
+    // covered the headers but not `res.json()`. A server that returned headers
+    // and then stalled left this promise pending forever, and because the
+    // whole first render waits on it the customer got a permanently blank page.
+    let rows: { config?: unknown }[] = []
+    if (res.ok) {
+      rows = await res.json()
+    }
     clearTimeout(timer)
     if (res.ok) {
-      const rows: { config?: unknown }[] = await res.json()
       const checked = validatePricingConfig(rows[0]?.config)
       if (checked.ok) {
         try {

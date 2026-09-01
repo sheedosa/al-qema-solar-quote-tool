@@ -1,9 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { canContinue, initialData, makeAc, makeAppliance, PRESET_NAMES, whatsappLink } from '../logic'
+import {
+  canContinue,
+  formatPhoneE164,
+  initialData,
+  isValidLibyanMobile,
+  makeAc,
+  makeAppliance,
+  normalizeLibyanPhone,
+  PRESET_NAMES,
+  whatsappLink,
+} from '../logic'
 import type { AcUnit, FormData } from '../types'
 import { PRICING_CONFIG } from './config'
 import { bomTotal, priceCustomBom, runEngine, toWaQuote } from './engine'
+import { buildQuoteRecord, FIELD_LIMITS } from './persist'
 import { validatePricingConfig } from './validate'
 import type { Demand, PricingConfig } from './types'
 
@@ -18,6 +29,17 @@ const ac = (over: Partial<AcUnit> = {}): AcUnit => ({ ...makeAc(), ...over })
 const STRICT: PricingConfig = { ...PRICING_CONFIG, acBtuCapMode: 'strict' }
 
 const TIER_RANK: Record<string, number> = { S: 0, M: 1, L: 2, XL: 3, XXL: 4, CUSTOM: 5 }
+
+/** Minimal stand-in for the EN bundle's message builder. */
+const EN_MSG = (name: string, q: import('./types').WaQuote) =>
+  name +
+  ' ' +
+  q.tier +
+  ' ' +
+  (q.priceFrom ?? 'survey') +
+  (q.city ? ' City: ' + q.city : '') +
+  (q.propertyType ? ' Property: ' + q.propertyType : '') +
+  (q.notes ? ' Notes: ' + q.notes : '')
 
 describe('1. BOM reconciliation — client quotation of 16/07/2026', () => {
   it('rebuilds the invoice to exactly 84,300 LYD from component rates', () => {
@@ -585,5 +607,86 @@ describe('22. Validator plausibility bounds', () => {
 
   it('accepts the shipped config unchanged', () => {
     expect(validatePricingConfig(JSON.parse(JSON.stringify(PRICING_CONFIG))).ok).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 3 — lead integrity.
+// ---------------------------------------------------------------------------
+
+describe('23. Libyan phone handling', () => {
+  const cases: [string, string, boolean][] = [
+    ['912345678', '912345678', true],
+    ['0912345678', '912345678', true], // trunk zero stripped
+    ['+218 91 234 5678', '912345678', true], // pasted country code
+    ['00218912345678', '912345678', true],
+    ['91 234 5678', '912345678', true],
+    ['12345678', '12345678', false], // 8 digits used to pass
+    ['812345678', '812345678', false], // Libyan mobiles start with 9
+    ['9123456789', '9123456789', false], // too long
+  ]
+  for (const [input, normalized, valid] of cases) {
+    it(`"${input}" → ${normalized} (${valid ? 'valid' : 'rejected'})`, () => {
+      expect(normalizeLibyanPhone(input)).toBe(normalized)
+      expect(isValidLibyanMobile(input)).toBe(valid)
+    })
+  }
+
+  it('never produces a double country code', () => {
+    expect(formatPhoneE164('+218912345678')).toBe('+218912345678')
+    expect(formatPhoneE164('0912345678')).toBe('+218912345678')
+  })
+
+  it('step 1 rejects the numbers the old length check let through', () => {
+    const d = { ...initialData(), name: 'Ali', propertyType: 'Home', city: 'Tripoli' }
+    expect(canContinue({ ...d, whatsapp: '12345678' }, 1)).toBe(false)
+    expect(canContinue({ ...d, whatsapp: '912345678' }, 1)).toBe(true)
+  })
+})
+
+describe('24. The WhatsApp handoff carries what the engineer needs', () => {
+  it('includes city, property, AC count and the customer notes', () => {
+    const d: FormData = {
+      ...base(),
+      name: 'Ali',
+      whatsapp: '912345678',
+      city: 'Misrata',
+      propertyType: 'Shop',
+      acUnits: [ac({ capValue: '12000' })],
+      notes: 'Please install before the end of the month.',
+    }
+    const q = toWaQuote(runEngine(d, PRICING_CONFIG), d)
+    expect(q.city).toBe('Misrata')
+    expect(q.propertyType).toBe('Shop')
+    expect(q.acCount).toBe(1)
+    expect(q.notes).toContain('end of the month')
+
+    const link = whatsappLink(d, q, '+218911139113', EN_MSG)
+    const text = decodeURIComponent(link.split('?text=')[1])
+    expect(text).toContain('Misrata')
+    expect(text).toContain('Shop')
+    // The notes field was collected and then shown to nobody.
+    expect(text).toContain('end of the month')
+  })
+})
+
+describe('25. Photos never reach the persisted record', () => {
+  it('strips object URLs from both the top-level photos and each AC row', () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '12000', photo: 'blob:fake-ac-photo' })],
+      photos: { panel: 'blob:a', meter: 'blob:b', roof: null, stickers: 'blob:c' },
+    }
+    const rec = buildQuoteRecord(d, runEngine(d, PRICING_CONFIG), 'en')
+    expect(Object.values(rec.form.photos).every((p) => p === null)).toBe(true)
+    // The AC-row photo used to survive into the database as a dead blob: URL.
+    expect(rec.form.acUnits.every((u) => u.photo === null)).toBe(true)
+  })
+
+  it('truncates fields to the database limits instead of being rejected', () => {
+    const d: FormData = { ...base(), name: 'x'.repeat(500), notes: 'y'.repeat(9000) }
+    const rec = buildQuoteRecord(d, runEngine(d, PRICING_CONFIG), 'en')
+    expect(rec.form.name.length).toBe(FIELD_LIMITS.name)
+    expect(rec.form.notes.length).toBe(FIELD_LIMITS.notes)
   })
 })

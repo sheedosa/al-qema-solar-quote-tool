@@ -1,4 +1,5 @@
 import type { Strings } from './i18n'
+import { formatPhoneE164 } from './logic'
 import type { FormData } from './types'
 
 export type ReviewRow = { k: string; v: string }
@@ -50,7 +51,13 @@ export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
       step: 1,
       rows: [
         { k: R.keys.name, v: dash(d.name) },
-        { k: R.keys.whatsapp, v: d.whatsapp ? '‎+218 ' + d.whatsapp : R.dash },
+        {
+          k: R.keys.whatsapp,
+          // LRI…PDI isolates, matching the AC capacity treatment above. A bare
+          // LRM was not enough: inside an RTL row the number could render as
+          // "91 123 4567 218+".
+          v: d.whatsapp ? '\u2066' + formatPhoneE164(d.whatsapp) + '\u2069' : R.dash,
+        },
         {
           k: R.keys.property,
           v:
