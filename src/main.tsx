@@ -19,6 +19,10 @@ window.addEventListener('hashchange', () => {
 const root = createRoot(document.getElementById('root')!)
 
 if (wantAdmin) {
+  // The boot placeholder is a fixed full-screen overlay. It is removed on the
+  // customer path once React mounts; the admin path has to remove it too, or
+  // the panel renders underneath it and the overlay swallows every click.
+  document.getElementById('boot')?.remove()
   // Lazy chunk: company staff only — customers never download it.
   const AdminApp = lazy(() => import('./admin/AdminApp'))
   root.render(

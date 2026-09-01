@@ -4,6 +4,7 @@ import { C } from '../theme'
 import { Login } from './Login'
 import { PricingEditor } from './PricingEditor'
 import { Submissions } from './Submissions'
+import { isDemoMode } from './demoClient'
 import { supabase } from './supabaseClient'
 
 /**
@@ -47,6 +48,28 @@ export default function AdminApp() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.canvas }}>
+      {isDemoMode() && (
+        // Unmissable, and above the sticky header so it cannot scroll away.
+        // Someone shown this screen must never mistake the rows for real
+        // customers, or think a price change they make here went live.
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 60,
+            background: C.amberTint,
+            color: C.amber,
+            borderBottom: `1px solid ${C.amber}33`,
+            fontSize: 13,
+            fontWeight: 600,
+            textAlign: 'center',
+            padding: '8px 16px',
+          }}
+        >
+          DEMO MODE — sample data only. These are not real customers, and
+          nothing you change here is saved.
+        </div>
+      )}
       <header
         style={{
           position: 'sticky',
