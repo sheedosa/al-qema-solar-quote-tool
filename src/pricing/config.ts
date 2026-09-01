@@ -116,6 +116,13 @@ export const PRICING_CONFIG: PricingConfig = {
     roundUpToLyd: 500,
     /** The custom price never displays below this floor (admin-editable). */
     minimumLyd: 55500,
+    /**
+     * Above this we stop quoting and ask for a site survey. Without a cap the
+     * form's own maximum inputs produce a ~1,870,000 LYD quote for a 298 kWp
+     * array — a number no customer should ever be shown unseen.
+     * Awaiting client confirmation (docs/PRICING-INPUTS.md B6).
+     */
+    maximumLyd: 250000,
   },
 
   /** Retail unit prices — custom/BOM path and invoice reconciliation only. */
@@ -208,5 +215,21 @@ export const PRICING_CONFIG: PricingConfig = {
     liquidBatteryVoltageV: 12,
     kvaToKw: 1.0,
     alwaysOnNightHours: 12, // client's stated max runtime
+    /**
+     * Running watts → peak draw, per category. `watts` on a load is a
+     * duty-cycle average; an inverter has to survive the instantaneous pull.
+     * Compressors (ACs, fridges, freezers) are the reason this exists: a
+     * fridge averaging 60 W pulls 150 W running and surges higher on start.
+     * DRAFT — pending Al Qema engineering approval.
+     */
+    surgeFactorByCategory: { ac: 1.0, cold: 2.5, lighting: 1.0, appliance: 1.0 },
+    /** Roof area one panel occupies, including walkway allowance. DRAFT. */
+    panelAreaM2: 2.5,
+    /**
+     * Usable roof area per answer, for the feasibility warning only. Keys are
+     * the canonical form values from ROOF_VALS in src/logic.ts. 'Not sure' is
+     * 0, which disables the check rather than guessing. DRAFT.
+     */
+    roofAreaM2ByAnswer: { Small: 20, Medium: 50, Large: 120, 'Not sure': 0 },
   },
 }

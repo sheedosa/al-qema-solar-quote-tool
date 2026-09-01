@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { canContinue, initialData, makeAc, makeAppliance, PRESET_NAMES, whatsappLink } from '../logic'
 import type { AcUnit, FormData } from '../types'
@@ -60,7 +61,11 @@ describe('3. AC gating', () => {
     const r = runEngine(base(), PRICING_CONFIG)
     expect(r.recommendedTier).toBe('S')
     expect(r.priceFrom).toBe(8730)
+    // The customer answered the bulb type, so nothing they could have told us
+    // is missing — confidence stays high. The hidden running-hours figures are
+    // still disclosed, they just don't flag the quote.
     expect(r.confidence).toBe('high')
+    expect(r.assumptionsMade).toContain('usageHoursAssumed')
     expect(r.dailyKwh).toBeCloseTo(1.94, 2)
     expect(r.nightKwh).toBeCloseTo(1.22, 2)
     expect(r.constraintsBinding).toEqual([])
@@ -109,11 +114,14 @@ describe('4. Custom pricing + floor', () => {
       expect(r.customBuild!.subtotalLyd).toBe(54300)
       expect(r.customBuild!.floorApplied).toBe(true)
       expect(r.priceFrom).toBe(55500) // rounded 54,500 → floored to the minimum
-      expect(r.specs.panels.count).toBe(8)
-      expect(r.specs.battery.nominalKwh).toBe(20)
-      expect(r.specs.battery.chemistry).toBe('lithium')
+      expect(r.specs!.panels.count).toBe(8)
+      expect(r.specs!.battery.nominalKwh).toBe(20)
+      expect(r.specs!.battery.chemistry).toBe('lithium')
       expect(r.constraintsBinding).toContain('acCount')
-      expect(r.includes).toEqual([])
+      // A custom build bills for installation exactly like a package does, so
+      // it carries the same inclusions rather than claiming none.
+      expect(r.includes).toEqual(PRICING_CONFIG.includes)
+      expect(r.warnings).toContain('customFloorApplied')
     }
   })
 })
@@ -145,7 +153,7 @@ describe('5. Monotonicity — more load never yields a smaller tier or price', (
       const prev = results[i - 1]
       const cur = results[i]
       expect(TIER_RANK[cur.recommendedTier]).toBeGreaterThanOrEqual(TIER_RANK[prev.recommendedTier])
-      expect(cur.priceFrom).toBeGreaterThanOrEqual(prev.priceFrom)
+      expect(cur.priceFrom!).toBeGreaterThanOrEqual(prev.priceFrom!)
     }
   })
 })
@@ -348,5 +356,234 @@ describe('12. WhatsApp custom price', () => {
     const q = toWaQuote(runEngine(d, PRICING_CONFIG))
     expect(q.isCustom).toBe(true)
     expect(q.priceFrom).toBe(55500)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 2 — regressions for the correctness fixes.
+// ---------------------------------------------------------------------------
+
+const cfgWith = (patch: (c: PricingConfig) => void): PricingConfig => {
+  const c = JSON.parse(JSON.stringify(PRICING_CONFIG)) as PricingConfig
+  patch(c)
+  return c
+}
+
+describe('13. A bad number can never buy the cheapest package', () => {
+  // Every constraint is a `<` comparison and `x < NaN` is false, so an
+  // unguarded NaN used to fail ZERO constraints and match S at 8,730 LYD.
+  const poison: [string, (d: FormData) => void][] = [
+    ['NaN fridge quantity', (d) => (d.fridge = { on: true, qty: NaN, alwaysOn: true })],
+    ['negative bulb count', (d) => (d.lighting = { type: 'led', count: -5, watts: '' })],
+    ['NaN appliance quantity', (d) => (d.appliances = [{ ...makeAppliance(1, 'TV'), qty: NaN }])],
+    ['NaN AC hours', (d) => (d.acUnits = [ac({ capValue: '12000', hours: NaN })])],
+  ]
+  for (const [label, mutate] of poison) {
+    it('survives ' + label + ' without quoting S', () => {
+      const d = base()
+      mutate(d)
+      const r = runEngine(d, PRICING_CONFIG)
+      expect(Number.isFinite(r.dailyKwh)).toBe(true)
+      expect(Number.isFinite(r.peakKw)).toBe(true)
+      expect(r.priceFrom === null || r.priceFrom >= 8730).toBe(true)
+      // The specific old bug: a poisoned submission landing on the cheapest tier.
+      if (r.recommendedTier === 'S') expect(Number.isFinite(r.nightKwh)).toBe(true)
+    })
+  }
+})
+
+describe('14. Peak power uses running watts, not duty-cycle averages', () => {
+  it('a fridge contributes its compressor draw to the inverter, not its average', () => {
+    const r = runEngine(base(), PRICING_CONFIG)
+    const fridge = r.loads.find((l) => l.id === 'fridge')!
+    // 150 W nameplate × 0.4 duty = 60 W average for ENERGY…
+    expect(fridge.watts).toBeCloseTo(60, 5)
+    // …but 150 W for SIZING, which is what an inverter has to survive.
+    expect(fridge.peakWatts).toBeCloseTo(150, 5)
+    expect(fridge.peakWatts).toBeGreaterThan(fridge.watts)
+  })
+
+  it('every load reports a peak at least as large as its average', () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '18000' })],
+      freezer: { on: true, qty: 1, alwaysOn: true },
+      appliances: [makeAppliance(1, 'Dryer'), makeAppliance(2, 'Router / Internet')],
+    }
+    for (const l of runEngine(d, PRICING_CONFIG).loads) {
+      expect(l.peakWatts).toBeGreaterThanOrEqual(l.watts)
+    }
+  })
+})
+
+describe('15. A zero-hour AC costs the customer nothing', () => {
+  it('three ACs left at 0 h/day do not force a custom system', () => {
+    const idle = [
+      ac({ capValue: '9000', hours: 0 }),
+      ac({ capValue: '9000', hours: 0 }),
+      ac({ capValue: '9000', hours: 0 }),
+    ]
+    const r = runEngine({ ...base(), acUnits: idle }, PRICING_CONFIG)
+    expect(r.recommendedTier).toBe('S')
+    expect(r.isCustom).toBe(false)
+    // Previously: 3 AC rows tripped maxAcUnits and produced CUSTOM at 55,500.
+    expect(r.priceFrom).toBe(8730)
+  })
+})
+
+describe('16. Systems too large to price are routed to a survey', () => {
+  it('the form maximum returns SURVEY with no price at all', () => {
+    const d: FormData = {
+      ...base(),
+      acUnits: Array.from({ length: 10 }, () => ac({ capValue: '32000', hours: 24 })),
+      lighting: { type: 'regular', count: 200, watts: '' },
+    }
+    const r = runEngine(d, PRICING_CONFIG)
+    expect(r.recommendedTier).toBe('SURVEY')
+    expect(r.priceFrom).toBeNull()
+    expect(r.specs).toBeNull()
+    expect(r.confidence).toBe('low')
+    // The WhatsApp handoff must not invent a figure either.
+    expect(toWaQuote(r).priceFrom).toBeNull()
+  })
+
+  it('a system just under the cap still gets a real price', () => {
+    const cfg = cfgWith((c) => (c.customBom.maximumLyd = 10_000_000))
+    const d: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '18000', hours: 10 }), ac({ capValue: '18000', hours: 10 })],
+    }
+    const r = runEngine(d, cfg)
+    expect(r.recommendedTier).not.toBe('SURVEY')
+    expect(r.priceFrom).toBeGreaterThan(0)
+  })
+})
+
+describe('17. Runtime hours are derived, not asserted', () => {
+  it('a system with more battery headroom advertises longer runtime', () => {
+    const light = runEngine({ ...base(), acUnits: [] }, PRICING_CONFIG)
+    const heavy = runEngine({ ...base(), acUnits: [ac({ capValue: '12000' })] }, PRICING_CONFIG)
+    expect(light.runtimeHours).not.toBeNull()
+    expect(heavy.runtimeHours).not.toBeNull()
+    // Both are real numbers rather than the old hardcoded "up to 12h".
+    expect(light.runtimeHours!).toBeGreaterThan(0)
+    expect(heavy.runtimeHours!).toBeGreaterThan(0)
+    expect(light.runtimeHours!).toBeLessThanOrEqual(24)
+  })
+})
+
+describe('18. The freezer no longer borrows the fridge condition multiplier', () => {
+  it('an old-fridge setting leaves the freezer untouched', () => {
+    const cfg = cfgWith((c) => (c.loadDefaults.defaultFridgeCondition = 'old'))
+    const d: FormData = { ...base(), freezer: { on: true, qty: 1, alwaysOn: true } }
+    const r = runEngine(d, cfg)
+    const fridge = r.loads.find((l) => l.id === 'fridge')!
+    const freezer = r.loads.find((l) => l.id === 'freezer')!
+    expect(fridge.watts).toBeCloseTo(150 * 0.4 * 1.3, 5) // multiplier applied
+    expect(freezer.watts).toBeCloseTo(200 * 0.45, 5) // and NOT applied here
+  })
+})
+
+describe('19. Previously unexercised engine branches', () => {
+  it('an inverter AC draws less than a standard one', () => {
+    const std = runEngine({ ...base(), acUnits: [ac({ capValue: '18000' })] }, PRICING_CONFIG)
+    const inv = runEngine(
+      { ...base(), acUnits: [ac({ capValue: '18000', inverter: 'yes' })] },
+      PRICING_CONFIG,
+    )
+    expect(inv.dailyKwh).toBeLessThan(std.dailyKwh)
+    // 0.075 vs 0.1 W/BTU — the inverter branch had never run in a test.
+    expect(inv.loads[0].watts).toBeCloseTo(18000 * 0.075, 5)
+  })
+
+  it('the freezer path contributes energy', () => {
+    const without = runEngine(base(), PRICING_CONFIG)
+    const withFreezer = runEngine(
+      { ...base(), freezer: { on: true, qty: 1, alwaysOn: true } },
+      PRICING_CONFIG,
+    )
+    expect(withFreezer.dailyKwh).toBeGreaterThan(without.dailyKwh)
+  })
+
+  it('a heavy appliance raises a warning', () => {
+    const r = runEngine({ ...base(), appliances: [makeAppliance(1, 'Dryer')] }, PRICING_CONFIG)
+    expect(r.warnings).toContain('heavyDutyLoad')
+  })
+
+  it('bulb type moves the recommendation — the 6,687 LYD lever', () => {
+    const led = runEngine({ ...base(), lighting: { type: 'led', count: 10, watts: '' } }, PRICING_CONFIG)
+    const mixed = runEngine({ ...base(), lighting: { type: 'mixed', count: 10, watts: '' } }, PRICING_CONFIG)
+    expect(led.recommendedTier).toBe('S')
+    expect(led.priceFrom).toBe(8730)
+    expect(mixed.recommendedTier).toBe('M')
+    expect(mixed.priceFrom).toBe(15417)
+    expect(mixed.priceFrom! - led.priceFrom!).toBe(6687)
+  })
+
+  it('battery voltage moves the recommendation — the largest single lever', () => {
+    const d: FormData = { ...base(), acUnits: [ac({ capValue: '12000' })] }
+    const at12 = runEngine(d, cfgWith((c) => (c.sizing.liquidBatteryVoltageV = 12)))
+    const at48 = runEngine(d, cfgWith((c) => (c.sizing.liquidBatteryVoltageV = 48)))
+    expect(at12.recommendedTier).toBe('L')
+    expect(at48.recommendedTier).toBe('M')
+    expect(at12.priceFrom! - at48.priceFrom!).toBe(16830)
+  })
+})
+
+describe('20. constraintsBinding reports what actually blocked the match', () => {
+  it('accumulates across the tiers walked, not just the last one', () => {
+    const d: FormData = { ...base(), acUnits: [ac({ capValue: '12000' })] }
+    const r = runEngine(d, PRICING_CONFIG)
+    expect(r.recommendedTier).toBe('L')
+    // S and M were both walked; the AC count blocked S and the battery blocked M.
+    expect(r.constraintsBinding).toContain('battery')
+    expect(r.constraintsBinding).toContain('acCount')
+  })
+})
+
+describe('21. seed.sql matches the bundled config', () => {
+  it('the SQL seed is byte-identical in content to src/pricing/config.ts', () => {
+    // seed.sql carries a hand-maintained copy of the config. Nothing used to
+    // assert they matched, so drift between what the code prices with and what
+    // a fresh database publishes was invisible.
+    const sql = readFileSync(new URL('../../supabase/seed.sql', import.meta.url), 'utf8')
+    const m = sql.match(/values \('[^']*', '(\{[\s\S]*\})'(?:::jsonb)?, (?:true|false)\)/)
+    expect(m, 'could not find the config JSON in seed.sql').not.toBeNull()
+    const seeded = JSON.parse(m![1].replace(/''/g, "'"))
+    expect(seeded).toEqual(JSON.parse(JSON.stringify(PRICING_CONFIG)))
+  })
+
+  it('the seeded config passes the same validator the app boots with', () => {
+    const sql = readFileSync(new URL('../../supabase/seed.sql', import.meta.url), 'utf8')
+    const m = sql.match(/values \('[^']*', '(\{[\s\S]*\})'(?:::jsonb)?, (?:true|false)\)/)
+    const v = validatePricingConfig(JSON.parse(m![1].replace(/''/g, "'")))
+    expect(v.ok, v.ok ? '' : v.errors.join('; ')).toBe(true)
+  })
+})
+
+describe('22. Validator plausibility bounds', () => {
+  const boundCases: [string, (c: PricingConfig) => void][] = [
+    ['peak sun hours of 55 (misplaced decimal)', (c) => (c.sizing.peakSunHours = 55)],
+    ['a power factor above 1', (c) => (c.sizing.kvaToKw = 100)],
+    ['a safety factor below 1', (c) => (c.sizing.inverterSafetyFactor = 0.5)],
+    ['night hours beyond a day', (c) => (c.sizing.alwaysOnNightHours = 48)],
+    ['a custom floor below the XXL price', (c) => (c.customBom.minimumLyd = 1000)],
+    ['a custom cap below the floor', (c) => (c.customBom.maximumLyd = 100)],
+    ['a renamed appliance preset', (c) => {
+      const a = c.loadDefaults.appliancesByName as Record<string, unknown>
+      a['Telly'] = a['TV']
+      delete a['TV']
+    }],
+  ]
+  for (const [label, mutate] of boundCases) {
+    it('rejects ' + label, () => {
+      const c = JSON.parse(JSON.stringify(PRICING_CONFIG)) as PricingConfig
+      mutate(c)
+      expect(validatePricingConfig(c).ok).toBe(false)
+    })
+  }
+
+  it('accepts the shipped config unchanged', () => {
+    expect(validatePricingConfig(JSON.parse(JSON.stringify(PRICING_CONFIG))).ok).toBe(true)
   })
 })

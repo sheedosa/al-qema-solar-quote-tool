@@ -68,6 +68,11 @@ export type CustomBomConfig = {
   roundUpToLyd: number
   /** The custom price never displays below this floor. */
   minimumLyd: number
+  /**
+   * Above this total the system is too large to quote unseen: the engine
+   * returns a SURVEY result with NO price rather than an eye-watering number.
+   */
+  maximumLyd: number
 }
 
 export type CustomBomLine = { name: string; qty: number; unitLyd: number; totalLyd: number }
@@ -119,6 +124,17 @@ export type PricingConfig = {
     liquidBatteryVoltageV: number
     kvaToKw: number
     alwaysOnNightHours: number
+    /**
+     * Running watts → peak draw. `watts` on a load is a duty-cycle AVERAGE
+     * (a fridge averages 60 W but its compressor pulls 150 W and surges
+     * higher), so sizing an inverter from it under-sizes systematically.
+     * Each category's average is multiplied by this to get its peak.
+     */
+    surgeFactorByCategory: { ac: number; cold: number; lighting: number; appliance: number }
+    /** Roof area one panel occupies, for the feasibility check. */
+    panelAreaM2: number
+    /** Usable roof area per answer, for the feasibility check. */
+    roofAreaM2ByAnswer: Record<string, number>
   }
 }
 
@@ -129,8 +145,14 @@ export type NormalizedLoad = {
   id: string
   label: string
   category: LoadCategory
-  /** Effective per-unit watts (duty cycle / condition / inverter-type applied). */
+  /**
+   * Per-unit watts for ENERGY only — duty cycle, condition and inverter-type
+   * applied, so it is an average across the hours the load runs. Never use it
+   * to size an inverter; use `peakWatts`.
+   */
   watts: number
+  /** Per-unit draw at peak, for inverter sizing. Always >= `watts`. */
+  peakWatts: number
   qty: number
   hoursPerDay: number
   runAtNight: boolean
@@ -152,8 +174,19 @@ export type Demand = {
 }
 
 export type ConstraintId = 'inverter' | 'battery' | 'panels' | 'acCount' | 'acBtu'
-export type WarningId = 'heavyDutyLoad' | 'acBtuExceeded'
-export type AssumptionId = 'acSizeAssumed' | 'lightingAssumed' | 'customApplianceAssumed'
+export type WarningId =
+  | 'heavyDutyLoad'
+  | 'acBtuExceeded'
+  /** The custom build costs less than the floor, so the floor is what we quote. */
+  | 'customFloorApplied'
+  /** The array needed is larger than the roof the customer described. */
+  | 'roofSpaceTight'
+export type AssumptionId =
+  | 'acSizeAssumed'
+  | 'lightingAssumed'
+  | 'customApplianceAssumed'
+  /** Hours/day per appliance and for lighting are never asked. */
+  | 'usageHoursAssumed'
 
 export type SystemSpecs = {
   inverter: { kva: number; kw: number }
@@ -171,14 +204,25 @@ export type EngineResult = {
   nightKwh: number
   peakKw: number
   requiredKwp: number
-  recommendedTier: PackageTier | 'CUSTOM'
-  /** Package price, or the custom BOM total (never below the config floor). */
-  priceFrom: number
+  /**
+   * SURVEY = too large (or too uncertain) to price unseen. `priceFrom` is null
+   * and the UI routes the customer to a site visit instead of showing a number.
+   */
+  recommendedTier: PackageTier | 'CUSTOM' | 'SURVEY'
+  /**
+   * Package price, or the custom BOM total (never below the config floor).
+   * null for SURVEY — we never invent a price we would not honour.
+   */
+  priceFrom: number | null
   currency: 'LYD'
-  specs: SystemSpecs
+  specs: SystemSpecs | null
   includes: IncludeId[]
   addOnsAvailable: { name: string; priceLyd: number }[]
-  runtimeNote: string
+  /**
+   * Hours the recommended battery actually covers the customer's night load.
+   * null when there is no night load, or for SURVEY. Derived, never hardcoded.
+   */
+  runtimeHours: number | null
   confidence: 'high' | 'low'
   assumptionsMade: AssumptionId[]
   warnings: WarningId[]
@@ -194,7 +238,8 @@ export type EngineResult = {
 /** The compact quote summary carried into the WhatsApp message. */
 export type WaQuote = {
   tier: string
-  priceFrom: number
+  /** null for SURVEY — the message asks for a visit instead of quoting. */
+  priceFrom: number | null
   dailyKwh: number
   isCustom: boolean
   configVersion: string

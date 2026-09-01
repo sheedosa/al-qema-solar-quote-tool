@@ -66,6 +66,114 @@ function Step({ n, children }: { n: number; children: string }) {
   )
 }
 
+/** Shared WhatsApp call-to-action, used by both the quote and survey results. */
+function WhatsAppCta({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onMouseEnter={(e) => (e.currentTarget.style.background = C.redHover)}
+      onMouseLeave={(e) => (e.currentTarget.style.background = C.red)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        minHeight: 52,
+        borderRadius: 12,
+        background: C.red,
+        color: C.white,
+        fontSize: 16,
+        fontWeight: 600,
+        textDecoration: 'none',
+        transition: 'background 0.15s',
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true">
+        <path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5 13.9c-.2.6-1.2 1.1-1.7 1.2-.4 0-1 .1-1.6-.1a13 13 0 01-1.5-.5c-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1.1-1.4-1.1-2.7s.7-1.9.9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.4l.8 2c.1.1.1.3 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1.1 2.2 1.4 2.5 1.5.3.1.5.1.7-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.1.1.6-.3 1.6z" />
+      </svg>
+      {label}
+    </a>
+  )
+}
+
+/**
+ * Shown when the system is beyond what the form can price honestly. No number
+ * is displayed — an estimate we would have to retract is worse than none.
+ */
+function SurveyResult({
+  firstName,
+  waLink,
+  onStartOver,
+  dailyKwh,
+}: {
+  firstName: string
+  waLink: string
+  onStartOver: () => void
+  dailyKwh: number
+}) {
+  const s = useStrings()
+  return (
+    <div
+      style={{
+        animation: 'stepIn 0.35s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 24,
+        paddingTop: 8,
+      }}
+    >
+      <div style={{ textAlign: 'center' }}>
+        <h2
+          style={{
+            margin: '0 0 6px',
+            fontSize: 25,
+            fontWeight: 600,
+            color: C.ink,
+            lineHeight: 1.3,
+            textWrap: 'pretty',
+          }}
+        >
+          {s.result.surveyTitle + firstName}
+        </h2>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: C.muted }}>
+          {s.result.subtitle}
+        </p>
+      </div>
+
+      <Card style={{ padding: '24px 20px' }}>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: C.body, textWrap: 'pretty' }}>
+          {s.result.surveyBody}
+        </p>
+        <div style={{ marginTop: 16, fontSize: 13.5, color: C.muted }}>
+          {s.result.dailyNeed} <span dir="ltr">{dailyKwh.toFixed(1)}</span>{' '}
+          {s.result.kwhPerDay}
+        </div>
+      </Card>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <WhatsAppCta href={waLink} label={s.result.surveyCta} />
+        <button
+          onClick={onStartOver}
+          style={{
+            minHeight: 48,
+            borderRadius: 12,
+            border: `1px solid ${C.border}`,
+            background: 'transparent',
+            color: C.body,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {s.result.startOver}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function Screen7Result({
   result,
   firstName,
@@ -81,8 +189,21 @@ export function Screen7Result({
 }) {
   const s = useStrings()
   const r = result
-  const specs = r.specs
 
+  // Too large to price from a form. We deliberately show no number rather than
+  // one the engineer would have to walk back.
+  if (r.recommendedTier === 'SURVEY' || r.specs === null || r.priceFrom === null) {
+    return (
+      <SurveyResult
+        firstName={firstName}
+        waLink={waLink}
+        onStartOver={onStartOver}
+        dailyKwh={r.dailyKwh}
+      />
+    )
+  }
+
+  const specs = r.specs
   const priceText = s.result.priceFrom + r.priceFrom.toLocaleString('en-US') + ' ' + s.result.lyd
 
   return (
@@ -352,9 +473,11 @@ export function Screen7Result({
               gap: 4,
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
-              {s.result.runtimeNote}
-            </div>
+            {r.runtimeHours !== null && (
+              <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
+                {s.result.runtimeNote(r.runtimeHours)}
+              </div>
+            )}
             <div style={{ fontSize: 13, fontWeight: 400, color: C.muted }}>
               {s.result.warrantyNote}
             </div>
@@ -382,32 +505,7 @@ export function Screen7Result({
       </Card>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <a
-          href={waLink}
-          target="_blank"
-          rel="noopener"
-          onMouseEnter={(e) => (e.currentTarget.style.background = C.redHover)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = C.red)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            minHeight: 52,
-            borderRadius: 12,
-            background: C.red,
-            color: C.white,
-            fontSize: 16,
-            fontWeight: 600,
-            textDecoration: 'none',
-            transition: 'background 0.15s',
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF">
-            <path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5 13.9c-.2.6-1.2 1.1-1.7 1.2-.4 0-1 .1-1.6-.1a13 13 0 01-1.5-.5c-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1.1-1.4-1.1-2.7s.7-1.9.9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.4l.8 2c.1.1.1.3 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1.1 2.2 1.4 2.5 1.5.3.1.5.1.7-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.1.1.6-.3 1.6z" />
-          </svg>
-          {s.result.whatsappCta}
-        </a>
+        <WhatsAppCta href={waLink} label={s.result.whatsappCta} />
         <button
           onClick={onStartOver}
           style={{

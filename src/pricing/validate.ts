@@ -1,3 +1,4 @@
+import { PRESET_NAMES } from '../logic'
 import type { PricingConfig } from './types'
 
 /**
@@ -16,6 +17,19 @@ export type ValidationResult =
 
 const TIER_ORDER = ['S', 'M', 'L', 'XL', 'XXL']
 const INCLUDE_IDS = ['installConnection', 'economyLighting', 'tvScreen', 'fridge', 'freezerOrPump']
+
+/**
+ * Sane ranges for the sizing constants, as [key, min, max]. Type checks alone
+ * let a typo through: every value below is physically bounded, so the bound is
+ * part of the contract rather than a matter of taste.
+ */
+const SIZING_BOUNDS: readonly [string, number, number][] = [
+  ['peakSunHours', 1, 12], // more than 12 h of usable sun is not a place on Earth
+  ['inverterSafetyFactor', 1, 3], // below 1 would size the inverter under peak
+  ['liquidBatteryVoltageV', 2, 240],
+  ['kvaToKw', 0.5, 1], // power factor; above 1 would invent capacity
+  ['alwaysOnNightHours', 1, 24],
+]
 
 const isRecord = (x: unknown): x is Record<string, unknown> =>
   typeof x === 'object' && x !== null && !Array.isArray(x)
@@ -145,6 +159,18 @@ export function validatePricingConfig(x: unknown): ValidationResult {
     if (!isRecord(apps)) {
       bad('loadDefaults.appliancesByName', 'not an object')
     } else {
+      // Every chip the form offers must have a power figure. A renamed or
+      // deleted key fails nowhere: the engine silently falls back to the
+      // 100 W / 4 h "custom device" default, so every customer tapping that
+      // chip gets a quietly wrong quote.
+      for (const preset of PRESET_NAMES) {
+        if (!isRecord(apps[preset])) {
+          bad(
+            'loadDefaults.appliancesByName',
+            "missing '" + preset + "' — the form offers it, so it needs a power figure",
+          )
+        }
+      }
       for (const [name, def] of Object.entries(apps)) {
         const at = 'loadDefaults.appliancesByName["' + name + '"]'
         if (!isRecord(def) || !finitePos(def.watts)) bad(at, 'needs watts > 0')
@@ -162,14 +188,16 @@ export function validatePricingConfig(x: unknown): ValidationResult {
   if (!isRecord(sz)) {
     bad('sizing', 'not an object')
   } else {
-    for (const key of [
-      'peakSunHours',
-      'inverterSafetyFactor',
-      'liquidBatteryVoltageV',
-      'kvaToKw',
-      'alwaysOnNightHours',
-    ]) {
-      if (!finitePos(sz[key])) bad('sizing.' + key, 'must be a positive number')
+    // Plausibility bounds, not just "is a number". Every one of these was
+    // previously unbounded, so a misplaced decimal published silently:
+    // peakSunHours 55 under-sizes every array, kvaToKw 100 disables the
+    // inverter check entirely, and 0.01 forces every customer to CUSTOM.
+    for (const [key, min, max] of SIZING_BOUNDS) {
+      const v = sz[key]
+      if (!finitePos(v)) bad('sizing.' + key, 'must be a positive number')
+      else if (v < min || v > max) {
+        bad('sizing.' + key, 'must be between ' + min + ' and ' + max)
+      }
     }
     for (const key of ['systemEfficiency', 'diversityFactor']) {
       if (!fraction(sz[key])) bad('sizing.' + key, 'must be in (0, 1]')
@@ -177,6 +205,22 @@ export function validatePricingConfig(x: unknown): ValidationResult {
     const dod = sz.dodByChemistry
     if (!isRecord(dod) || !fraction(dod.liquid) || !fraction(dod.lithium)) {
       bad('sizing.dodByChemistry', 'liquid and lithium must be in (0, 1]')
+    }
+    const surge = sz.surgeFactorByCategory
+    if (
+      !isRecord(surge) ||
+      !(['ac', 'cold', 'lighting', 'appliance'] as const).every(
+        (k) => finitePos(surge[k]) && (surge[k] as number) >= 1 && (surge[k] as number) <= 10,
+      )
+    ) {
+      bad('sizing.surgeFactorByCategory', 'ac/cold/lighting/appliance must each be between 1 and 10')
+    }
+    if (!finitePos(sz.panelAreaM2) || (sz.panelAreaM2 as number) > 20) {
+      bad('sizing.panelAreaM2', 'must be a positive number of m² under 20')
+    }
+    const roof = sz.roofAreaM2ByAnswer
+    if (!isRecord(roof) || !Object.values(roof).every((v) => finiteNonNeg(v))) {
+      bad('sizing.roofAreaM2ByAnswer', 'every entry must be a non-negative number of m²')
     }
   }
 
@@ -225,6 +269,22 @@ export function validatePricingConfig(x: unknown): ValidationResult {
     }
     if (!finitePos(cb.roundUpToLyd)) bad('customBom.roundUpToLyd', 'must be positive')
     if (!finitePos(cb.minimumLyd)) bad('customBom.minimumLyd', 'must be positive')
+    if (!finitePos(cb.maximumLyd)) bad('customBom.maximumLyd', 'must be positive')
+    else if (finitePos(cb.minimumLyd) && cb.maximumLyd <= cb.minimumLyd) {
+      bad('customBom.maximumLyd', 'must be greater than the minimum')
+    }
+    // The floor must not undercut the largest package, or a strictly bigger
+    // requirement could be quoted below XXL. Today that holds only because the
+    // two numbers were hand-matched; here it becomes a rule.
+    if (finitePos(cb.minimumLyd) && Array.isArray(pkgs) && pkgs.length === 5) {
+      const top = pkgs[4]
+      if (isRecord(top) && finitePos(top.priceLyd) && cb.minimumLyd < top.priceLyd) {
+        bad(
+          'customBom.minimumLyd',
+          'must be at least the XXL price (' + top.priceLyd + ') or custom builds undercut it',
+        )
+      }
+    }
   }
 
   if (errors.length > 0) return { ok: false, errors }

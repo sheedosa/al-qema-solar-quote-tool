@@ -219,7 +219,11 @@ const EN = {
       fridge: 'Fridge',
       freezerOrPump: 'Freezer or water pump',
     } as Record<string, string>,
-    runtimeNote: 'Backup runtime up to 12 hours, depending on devices and usage',
+    runtimeNote: (hours: number) =>
+      'Backup runtime around ' +
+      hours +
+      (hours === 1 ? ' hour' : ' hours') +
+      ', depending on devices and usage',
     warrantyNote: '1-year warranty on all parts',
     addOnLine: (price: string) => 'Optional add-on: battery box (2 batteries) — ' + price + ' LYD',
     termsNote: 'Final scope covers the loads agreed with our engineer.',
@@ -230,6 +234,10 @@ const EN = {
         'Heavy appliances (oven, kettle, dryer…) draw a lot of power — our engineer will review them with you.',
       acBtuExceeded:
         'One of your ACs is larger than this package officially supports — our engineer will confirm the right fit.',
+      customFloorApplied:
+        'This is our minimum price for a custom-built system, which covers design, installation and call-out.',
+      roofSpaceTight:
+        'This array may need more roof space than you described — our engineer will check the fit on site.',
     } as Record<string, string>,
     assumedTitle: 'We assumed a few details',
     assumedBody:
@@ -238,7 +246,12 @@ const EN = {
       acSizeAssumed: 'AC size (12,000 BTU typical)',
       lightingAssumed: 'Bulb wattage',
       customApplianceAssumed: 'Custom device power',
+      usageHoursAssumed: 'Typical daily running hours per device',
     } as Record<string, string>,
+    surveyTitle: 'Let’s design this one properly, ',
+    surveyBody:
+      'Your needs are larger than we can price accurately from a form. Rather than show you a number we might have to change, our engineer will visit, measure your roof and loads, and give you a firm quote.',
+    surveyCta: 'Arrange a site visit on WhatsApp',
     customTitle: 'You need a tailored system, ',
     customPackageName: 'Custom system',
     customBody:
@@ -345,7 +358,15 @@ const EN = {
     acSuffix: 'AC',
   },
   whatsappMsg: (name: string, q: WaQuote) =>
-    q.isCustom
+    q.priceFrom === null
+      ? 'Hello Al Qema! I completed the solar estimate form. My name is ' +
+        name +
+        ' — my needs are larger than the standard packages (daily need ~' +
+        q.dailyKwh +
+        ' kWh), so the form could not price them. Ref: ' +
+        q.configVersion +
+        '. Please arrange a site survey.'
+      : q.isCustom
       ? 'Hello Al Qema! I completed the solar estimate form. My name is ' +
         name +
         ' — my needs require a custom system, from ' +
@@ -556,7 +577,8 @@ const AR: Strings = {
       fridge: 'ثلاجة',
       freezerOrPump: 'مجمّد (فريزر) أو مضخة ماء',
     },
-    runtimeNote: 'مدة التشغيل الاحتياطي حتى 12 ساعة حسب الأجهزة والاستخدام',
+    runtimeNote: (hours: number) =>
+      'مدة التشغيل الاحتياطي نحو ' + hours + ' ساعة حسب الأجهزة والاستخدام',
     warrantyNote: 'ضمان سنة على جميع القطع',
     addOnLine: (price: string) => 'إضافة اختيارية: صندوق بطاريات (بطاريتان) — ' + price + ' د.ل',
     termsNote: 'يشمل النطاق النهائي الأحمال المتفق عليها مع مهندسنا.',
@@ -567,6 +589,10 @@ const AR: Strings = {
         'الأجهزة الثقيلة (فرن، غلّاية، نشّافة…) تستهلك طاقة كبيرة — سيراجعها مهندسنا معك.',
       acBtuExceeded:
         'أحد مكيّفاتك أكبر مما تدعمه هذه الباقة رسمياً — سيؤكّد مهندسنا الخيار المناسب.',
+      customFloorApplied:
+        'هذا هو الحد الأدنى لسعر النظام المخصّص، ويشمل التصميم والتركيب والانتقال.',
+      roofSpaceTight:
+        'قد تحتاج هذه الألواح مساحة سطح أكبر مما ذكرت — سيتحقق مهندسنا من ذلك في الموقع.',
     },
     assumedTitle: 'افترضنا بعض التفاصيل',
     assumedBody: 'حيث لم تكن متأكداً، استخدمنا قيماً نموذجية — سيؤكّدها مهندسنا قبل التسعير النهائي.',
@@ -574,7 +600,12 @@ const AR: Strings = {
       acSizeAssumed: 'حجم المكيّف (12,000 BTU نموذجي)',
       lightingAssumed: 'قدرة اللمبات',
       customApplianceAssumed: 'قدرة الجهاز المخصّص',
+      usageHoursAssumed: 'ساعات التشغيل اليومية المعتادة لكل جهاز',
     },
+    surveyTitle: 'دعنا نصمّم لك هذا النظام كما يجب، ',
+    surveyBody:
+      'احتياجاتك أكبر من أن نُسعّرها بدقة عبر نموذج. وبدلاً من عرض رقم قد نضطر لتغييره، سيزورك مهندسنا ليقيس السطح والأحمال ويعطيك عرضاً نهائياً.',
+    surveyCta: 'رتّب معاينة عبر واتساب',
     customTitle: 'تحتاج إلى نظام مخصّص، ',
     customPackageName: 'نظام مخصّص',
     customBody:
@@ -679,7 +710,15 @@ const AR: Strings = {
     acSuffix: 'مكيّف',
   },
   whatsappMsg: (name: string, q: WaQuote) =>
-    q.isCustom
+    q.priceFrom === null
+      ? 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
+        name +
+        ' — احتياجي أكبر من الباقات القياسية (استهلاك يومي ~' +
+        q.dailyKwh +
+        ' kWh)، ولم يتمكن النموذج من تسعيره. مرجع: ' +
+        q.configVersion +
+        '. يرجى ترتيب معاينة للموقع.'
+      : q.isCustom
       ? 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
         name +
         ' — احتياجي يتطلب نظاماً مخصّصاً، ابتداءً من ' +
