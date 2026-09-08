@@ -70,3 +70,60 @@ input[type='range'] {
     transform: translateY(0);
   }
 }
+
+/* --------------------------------------------------------------------------
+ * Admin panel — mobile.
+ *
+ * The admin is styled with inline objects, so these are the rules that must
+ * be real CSS: media queries and pseudo-classes can't be expressed inline.
+ * -------------------------------------------------------------------------- */
+
+/*
+ * iOS Safari zooms the whole page when a focused input's font-size is under
+ * 16px, so every admin field must be at least that on a phone.
+ *
+ * `!important` is required: these elements carry an inline `style` object, and
+ * an inline style beats a stylesheet rule. The components also set the size
+ * inline for the same reason — this rule is the backstop for any field that
+ * forgets to.
+ */
+@media (max-width: 768px) {
+  .admin-input,
+  .admin-input:focus {
+    font-size: 16px !important;
+  }
+}
+
+/* Number spinners eat ~22px of a narrow field and nobody taps them on a phone. */
+@media (max-width: 768px) {
+  .admin-input::-webkit-outer-spin-button,
+  .admin-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+/* Focus ring for buttons and selects, which the input-only rule above misses. */
+.admin-focusable:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* Any wide block (a table) scrolls inside its card instead of the page. */
+.admin-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The admin never scrolls horizontally as a document. */
+.admin-root {
+  overflow-x: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -3,6 +3,7 @@ import { C, cardStyle, inputStyle } from '../theme'
 import type { PricingConfig } from '../pricing/types'
 import { validatePricingConfig } from '../pricing/validate'
 import { supabase } from './supabaseClient'
+import { MobileContext, useIsMobile, useMobileValue } from './useIsMobile'
 
 type ConfigRow = { id: string; version: string; created_at: string; is_active: boolean }
 
@@ -13,7 +14,12 @@ const sectionTitle: React.CSSProperties = {
   marginBottom: 10,
 }
 const label: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: C.muted }
-const numStyle: React.CSSProperties = { ...inputStyle, minHeight: 38, padding: '6px 10px', fontSize: 14 }
+const numStyle: React.CSSProperties = {
+  ...inputStyle,
+  // 44px is the touch floor the rest of the admin now uses; this was 38.
+  minHeight: 44,
+  padding: '8px 12px',
+}
 
 function Num({
   value,
@@ -24,25 +30,84 @@ function Num({
   onChange: (n: number | null) => void
   width?: number
 }) {
+  const isMobile = useMobileValue()
   return (
     <input
+      className="admin-input"
       type="number"
+      inputMode="decimal"
       value={value ?? ''}
       onChange={(e) => {
         const v = e.target.value
         onChange(v === '' ? null : Number(v))
       }}
-      style={{ ...numStyle, width }}
+      // `width` is the DESKTOP width only. On a phone every field fills its
+      // column — a 110px input in a ~320px card left 200px of dead space, and
+      // `inputStyle`'s own `width: 100%` was being defeated at ~40 call sites.
+      //
+      // fontSize is set HERE rather than in the .admin-input class: an inline
+      // style beats a stylesheet rule, so the class could never win. iOS zooms
+      // the whole page when a focused input is under 16px.
+      style={{
+        ...numStyle,
+        width: isMobile ? '100%' : width,
+        minWidth: 0,
+        fontSize: isMobile ? 16 : 14,
+      }}
     />
   )
 }
 
 function Field({ name, children }: { name: string; children: React.ReactNode }) {
+  // minWidth: 0 — without it a width:100% input inside a flex/grid item
+  // overflows its track instead of shrinking.
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
       <span style={label}>{name}</span>
       {children}
     </div>
+  )
+}
+
+/**
+ * Hoisted out of `PricingEditor`'s body, where it was previously declared.
+ *
+ * A component declared inside another has a new function identity on every
+ * render, so React treated each <select> as a different component TYPE and
+ * unmounted/remounted its DOM node whenever anything in the config changed.
+ * The visible symptom: an open dropdown snapped shut, and the select could
+ * not hold focus. Passing `options` as a prop is what makes hoisting
+ * possible — the closure over the component list was the reason it was inline.
+ */
+function ComponentSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string
+  options: string[]
+  onChange: (name: string) => void
+}) {
+  const isMobile = useMobileValue()
+  return (
+    <select
+      className="admin-input admin-focusable"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        ...numStyle,
+        width: isMobile ? '100%' : 190,
+        minWidth: 0,
+        background: C.white,
+        fontSize: isMobile ? 16 : 14,
+      }}
+    >
+      {options.map((n) => (
+        <option key={n} value={n}>
+          {n}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -67,6 +132,10 @@ export function PricingEditor() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [newComponent, setNewComponent] = useState('')
+  const [baseline, setBaseline] = useState('')
+  // One slot, so opening a confirm on another row cancels the first.
+  const [confirmDel, setConfirmDel] = useState<string | null>(null)
+  const isMobile = useIsMobile()
 
   const loadAll = async () => {
     const { data: rows } = await supabase
@@ -82,7 +151,13 @@ export function PricingEditor() {
         .select('config')
         .eq('id', active.id)
         .single()
-      if (data) setCfg(data.config as PricingConfig)
+      if (data) {
+        setCfg(data.config as PricingConfig)
+        // Baseline for the dirty check, so the action bar can say whether
+        // there is anything to publish — and so publishing a brand-new
+        // version number when nothing changed is no longer possible.
+        setBaseline(JSON.stringify(data.config))
+      }
     }
   }
 
@@ -151,29 +226,41 @@ export function PricingEditor() {
   if (!cfg) return <div style={{ color: C.muted, padding: 20 }}>Loading pricing config…</div>
 
   const componentNames = Object.keys(cfg.components)
-
-  const ComponentSelect = ({
-    value,
-    onChange,
-  }: {
-    value: string
-    onChange: (name: string) => void
-  }) => (
-    <select value={value} onChange={(e) => onChange(e.target.value)} style={{ ...numStyle, width: 190 }}>
-      {componentNames.map((n) => (
-        <option key={n} value={n}>
-          {n}
-        </option>
-      ))}
-    </select>
-  )
+  // Cheap at this config size, and it drives the bar's label, the button's
+  // disabled state, and the unload warning.
+  const dirty = JSON.stringify(cfg) !== baseline
 
   return (
+    <MobileContext.Provider value={isMobile}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/*
+        Errors and the success notice live at the TOP now. They used to sit in
+        the save card, two thirds of the way down a ~2,400px page, so a
+        validation failure appeared far from both the button that caused it and
+        the field that needs fixing.
+      */}
+      {errors.length > 0 && (
+        <div style={{ ...cardStyle, borderInlineStart: `3px solid ${C.red}` }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.red, marginBottom: 6 }}>
+            Cannot save — fix {errors.length === 1 ? 'this' : 'these'} first:
+          </div>
+          {errors.map((e) => (
+            <div key={e} style={{ fontSize: 13, color: C.body, lineHeight: 1.5 }}>
+              · {e}
+            </div>
+          ))}
+        </div>
+      )}
+      {notice && (
+        <div style={{ ...cardStyle, borderInlineStart: `3px solid ${C.green}` }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: C.green }}>{notice}</div>
+        </div>
+      )}
+
       {/* Packages */}
       <div style={cardStyle}>
         <div style={sectionTitle}>Packages</div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="admin-scroll-x">
           <table style={{ borderCollapse: 'separate', borderSpacing: '8px 6px' }}>
             <thead>
               <tr>
@@ -291,7 +378,15 @@ export function PricingEditor() {
       {/* Custom BOM */}
       <div style={cardStyle}>
         <div style={sectionTitle}>Custom-system pricing (BOM)</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        <div
+          style={{
+            display: 'grid',
+            // One field per row on a phone; even columns on desktop. `flex-wrap`
+            // packed by intrinsic width, which made the rows ragged.
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
+            gap: 16,
+          }}
+        >
           <Field name="Minimum price / floor (LYD)">
             <Num
               value={cfg.customBom.minimumLyd}
@@ -309,6 +404,7 @@ export function PricingEditor() {
           <Field name="Panel">
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
+                options={componentNames}
                 value={cfg.customBom.panel.component}
                 onChange={(name) => patch((c) => void (c.customBom.panel.component = name))}
               />
@@ -323,6 +419,7 @@ export function PricingEditor() {
           <Field name="Battery">
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
+                options={componentNames}
                 value={cfg.customBom.battery.component}
                 onChange={(name) => patch((c) => void (c.customBom.battery.component = name))}
               />
@@ -337,6 +434,7 @@ export function PricingEditor() {
           <Field name="Single inverter (≤ kW)">
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
+                options={componentNames}
                 value={cfg.customBom.inverter.single.component}
                 onChange={(name) => patch((c) => void (c.customBom.inverter.single.component = name))}
               />
@@ -350,6 +448,7 @@ export function PricingEditor() {
           <Field name="Parallel inverter (kW each)">
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
+                options={componentNames}
                 value={cfg.customBom.inverter.parallel.component}
                 onChange={(name) => patch((c) => void (c.customBom.inverter.parallel.component = name))}
               />
@@ -376,7 +475,7 @@ export function PricingEditor() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(250px, 1fr))',
             gap: '6px 20px',
           }}
         >
@@ -388,19 +487,76 @@ export function PricingEditor() {
                 width={90}
                 onChange={(n) => patch((c) => void (c.components[name] = n ?? 0))}
               />
-              <button
-                title="Remove component"
-                onClick={() => patch((c) => void delete c.components[name])}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: C.faint,
-                  fontSize: 16,
-                  cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
+              {/*
+                Was a bare 16px × glyph on a transparent background — roughly a
+                10×19px target — that deleted a price line instantly with no
+                confirmation and no undo. Now a real 44px target with a
+                two-tap confirm. Not window.confirm: unstyleable, and blocked
+                in some in-app webviews.
+              */}
+              {confirmDel === name ? (
+                <>
+                  <button
+                    className="admin-focusable"
+                    onClick={() => setConfirmDel(null)}
+                    style={{
+                      flex: 'none',
+                      minHeight: 44,
+                      padding: '0 12px',
+                      borderRadius: 10,
+                      border: `1px solid ${C.border}`,
+                      background: C.white,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="admin-focusable"
+                    onClick={() => {
+                      patch((c) => void delete c.components[name])
+                      setConfirmDel(null)
+                    }}
+                    style={{
+                      flex: 'none',
+                      minHeight: 44,
+                      padding: '0 12px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: C.red,
+                      color: C.white,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="admin-focusable"
+                  aria-label={'Remove ' + name}
+                  title={'Remove ' + name}
+                  onClick={() => setConfirmDel(name)}
+                  style={{
+                    flex: 'none',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    border: `1px solid ${C.border}`,
+                    background: C.white,
+                    color: C.muted,
+                    fontSize: 18,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -441,7 +597,7 @@ export function PricingEditor() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(290px, 1fr))',
             gap: '6px 20px',
           }}
         >
@@ -476,7 +632,15 @@ export function PricingEditor() {
       {/* Constants */}
       <div style={cardStyle}>
         <div style={sectionTitle}>Sizing constants</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        <div
+          style={{
+            display: 'grid',
+            // One field per row on a phone; even columns on desktop. `flex-wrap`
+            // packed by intrinsic width, which made the rows ragged.
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))',
+            gap: 16,
+          }}
+        >
           <Field name="AC W per BTU (standard)">
             <Num
               value={cfg.loadDefaults.acWattsPerBtu.standard}
@@ -586,48 +750,6 @@ export function PricingEditor() {
         </div>
       </div>
 
-      {/* Save */}
-      <div style={cardStyle}>
-        {errors.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.red, marginBottom: 6 }}>
-              Cannot save — fix these first:
-            </div>
-            {errors.map((e) => (
-              <div key={e} style={{ fontSize: 13, color: C.body }}>
-                · {e}
-              </div>
-            ))}
-          </div>
-        )}
-        {notice && (
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: C.green, marginBottom: 12 }}>
-            {notice}
-          </div>
-        )}
-        <button
-          onClick={() => void saveAndActivate()}
-          disabled={busy}
-          style={{
-            minHeight: 46,
-            padding: '0 22px',
-            borderRadius: 12,
-            border: 'none',
-            background: C.red,
-            color: C.white,
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: busy ? 'wait' : 'pointer',
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          Save & activate as {nextVersion()}
-        </button>
-        <div style={{ fontSize: 12.5, color: C.muted, marginTop: 8 }}>
-          Changes are validated first and go live for new visitors immediately.
-        </div>
-      </div>
-
       {/* History */}
       <div style={cardStyle}>
         <div style={sectionTitle}>Version history</div>
@@ -646,9 +768,10 @@ export function PricingEditor() {
                 <button
                   onClick={() => void activateExisting(row.id, row.version)}
                   disabled={busy}
+                  className="admin-focusable"
                   style={{
-                    minHeight: 30,
-                    padding: '0 12px',
+                    minHeight: 44,
+                    padding: '0 14px',
                     borderRadius: 8,
                     border: `1px solid ${C.border}`,
                     background: C.white,
@@ -664,6 +787,75 @@ export function PricingEditor() {
           ))}
         </div>
       </div>
+
+      {/*
+        Spacer so the last card clears the fixed bar below. `main`'s own bottom
+        padding is not enough once the bar is overlaying the viewport.
+      */}
+      <div style={{ height: 88 }} />
+
+      {/*
+        The publish control was card 6 of 7 on a ~2,400px page, so the primary
+        action of the whole screen required scrolling past everything — with
+        version history still below it.
+
+        Fixed, not sticky: a sticky element only sticks while its own parent
+        box is in view, so on a column this tall it would appear only once you
+        had already scrolled to the bottom. zIndex sits under the header's 50.
+      */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 40,
+          background: C.white,
+          borderTop: `1px solid ${C.border}`,
+          boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
+          padding: `10px ${isMobile ? 14 : 20}px calc(10px + env(safe-area-inset-bottom))`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: errors.length > 0 ? C.red : dirty ? C.amber : C.muted,
+          }}
+        >
+          {errors.length > 0
+            ? `${errors.length} problem${errors.length === 1 ? '' : 's'} — see top of page`
+            : dirty
+              ? 'Unsaved changes'
+              : 'No changes'}
+        </div>
+        <button
+          className="admin-focusable"
+          onClick={() => void saveAndActivate()}
+          disabled={busy || !dirty}
+          style={{
+            flex: 'none',
+            minHeight: 48,
+            padding: '0 20px',
+            borderRadius: 12,
+            border: 'none',
+            background: C.red,
+            color: C.white,
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: busy ? 'wait' : 'pointer',
+            opacity: busy || !dirty ? 0.55 : 1,
+          }}
+        >
+          {busy ? 'Saving…' : isMobile ? 'Save & activate' : 'Save & activate as ' + nextVersion()}
+        </button>
+      </div>
     </div>
+    </MobileContext.Provider>
   )
 }
