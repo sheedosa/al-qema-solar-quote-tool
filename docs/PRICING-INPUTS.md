@@ -215,13 +215,16 @@ roughly five times the hardware.
 
 ### B6. Above what size should we stop quoting and book a survey?
 
-There is currently no upper limit. Filling in the form at maximum produces a quote of
-**1,872,000 LYD** for 298 kWp of panels, 402 kW of inverters and 445 kWh of batteries —
-displayed to the customer as an ordinary price, with no sanity check.
+**Now implemented, but the number is ours, not yours.** There used to be no upper limit at
+all: filling in the form at maximum produced a quote of **1,872,000 LYD** for 298 kWp of
+panels, shown to the customer as an ordinary price. A ceiling now exists — above it the tool
+shows no price and offers a site survey instead — and we have set it provisionally at
+**250,000 LYD**.
 
-- What is the largest system the tool should price? Give us a number in kWp, LYD, or battery
-  count and above it the tool will say "we'll survey your site" and show no price.
-- Config key: **does not exist yet — we will add one**
+- Is 250,000 LYD the right ceiling? Above it the customer sees "we'll survey your site" and
+  no number at all, so setting it too low costs you quotes and too high shows numbers nobody
+  has checked.
+- Config key: `customBom.maximumLyd` · Current placeholder: **250,000**
 
 ### B7. Should the battery box (350 LYD) be included in the price or stay an upsell?
 
@@ -278,6 +281,75 @@ Three questions settle most of it:
 
 ---
 
+## Tier D — The commercial sizing method
+
+You sent us your written method for sizing large installations, and it is now implemented in
+the admin panel under **Sizing** (see `docs/commercial-sizing.md` for the full write-up).
+Examples 1 and 3 reproduce exactly. Four things need your answer before it can price a real
+job.
+
+### D1. Example 2 subtracts 50 from the gross energy. Is that part of the method?
+
+Examples 1 and 3 have no such step and reproduce to the panel without one. Example 2 does,
+and it is the only step that does not work out: 375 − 50 = 325, but the paper then writes
+"~310", divides that to get "60–65 batteries", and finally uses 60. The units do not match
+either — 375 is energy in kWh and 50 is power in kW, and going from one to the other needs a
+number of hours that the paper does not give.
+
+We have implemented it **without** the subtraction, so Example 2 comes out as 75 batteries
+and 255 panels rather than 60 and 222. That is a difference of 15 batteries, which at today's
+7,500 LYD each is **112,500 LYD on one job**.
+
+- Is there a daytime-offset step? If so, exactly what is subtracted from what?
+- Config key: none — this is a change to the calculation itself
+
+### D2. Does the inverter carry the battery charging?
+
+Your Step 4 chooses the inverter from the peak load alone, but Steps 2–3 size the array to
+carry the daytime load **and** refill the whole battery bank inside the same five hours. In
+your Example 1 that is a **93.75 kW array behind a 30 kW inverter** — a ratio of 3.1 to 1.
+
+If the inverter has to pass the charging current too, Example 1 needs 30 + 45 = 75 kW, so the
+next size up is 80 kW rather than 30 kW. That is the single largest cost difference in the
+method.
+
+- Does the hybrid inverter carry the charging, or do separate MPPT charge controllers?
+- The calculator currently follows your method exactly (30 kW) and shows the alternative
+  figure next to it with a warning.
+- Config key: `commercial.maxDcAcRatio` controls when the warning appears
+
+### D3. What do the commercial components cost?
+
+The price list has no **615 W panel** and no **commercial inverter** at any size. We have
+deliberately not borrowed the 590 W panel's 1,100 LYD for a different panel — those lines show
+"no price" in the parts list instead, with the quantity still visible.
+
+With everything else priced, your Example 1 comes to **419,000 LYD** — batteries alone are
+337,500 — and the panels and inverter are still open.
+
+- Price for the 615 W panel
+- Price for each inverter size you stock: 30, 40, 50, 80, 100, 200, 300 kW
+- Any of those sizes you do **not** stock, so we can remove the rung
+- These go straight into the admin panel under Pricing → Component price list; no developer
+  needed once you have the numbers
+
+### D4. What are the balance-of-system quantities at this scale?
+
+The calculator currently reuses the household figures: 2 clamps and 4 metres of DC cable per
+panel, one stand per two panels, one installation line, two consumables, one transport line.
+A 305-panel job is unlikely to use the same ratios as a 12-panel one, and installation and
+transport are certainly not a single flat line at that size.
+
+- Config key: `commercial.perPanel`, `commercial.perInverter`, `commercial.fixed`
+
+### D5. Is 615 W the panel you are installing now?
+
+The method says 615 W. The household side of the tool builds custom systems with the 590 W
+Jinko, and the packages are specified at 605 W and 550 W. At least two of those four numbers
+are out of date. This is the same question as B3, now with a fourth figure in play.
+
+---
+
 ## What happens when you answer
 
 | Answer | How it is applied | Needs a developer? |
@@ -296,6 +368,11 @@ Three questions settle most of it:
 | B6 maximum size | New setting and a "book a survey" result | Yes |
 | B7 battery box | Config setting | Small change |
 | B8 roof space and shade | New sizing input | Yes |
+| D1 daytime offset | Change to the commercial calculation | Yes |
+| D2 inverter and charging | Config setting, plus possibly the inverter rule | Partly |
+| D3 commercial prices | Admin panel → Component price list | No |
+| D4 balance-of-system at scale | Config setting | Yes — we will expose it in the panel |
+| D5 panel model | Admin panel → Packages and custom BOM | No |
 
 Every price change is published as a new version with a timestamp, takes effect immediately for
 new visitors, and can be rolled back from the admin panel.

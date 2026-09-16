@@ -125,6 +125,73 @@ export const PRICING_CONFIG: PricingConfig = {
     maximumLyd: 250000,
   },
 
+  /**
+   * Commercial sizing — the client's own written method for large
+   * installations, implemented verbatim (docs/commercial-sizing.md).
+   *
+   * Internal tool only. Nothing on the customer path reads this block: the
+   * wizard derives everything from an appliance checklist and cannot reach
+   * this scale. Its constants intentionally differ from `sizing` above, so
+   * the two must not be consolidated.
+   */
+  commercial: {
+    batteryEfficiency: 0.8,
+    systemEfficiency: 0.8,
+    peakSunHours: 5,
+    battery: { component: 'Qmax Lithium 5kW', kwhEach: 5 },
+    /**
+     * 615 W per the method. Note the household BOM builds with the 590 W
+     * Jinko — at least one of the two is out of date
+     * (docs/PRICING-INPUTS.md B3).
+     */
+    panel: { component: 'Jinko 615W', watts: 615 },
+    /**
+     * Stocked sizes, ascending. The component names have no entry in the rate
+     * card yet and that is deliberate: a commercial inverter price has never
+     * been confirmed, so the calculator reports these lines as unpriced rather
+     * than borrowing a number from a residential unit. Adding the price in the
+     * admin Component list is all it takes to complete the build.
+     */
+    inverterLadder: [
+      { kw: 30, component: 'Commercial inverter 30kW' },
+      { kw: 40, component: 'Commercial inverter 40kW' },
+      { kw: 50, component: 'Commercial inverter 50kW' },
+      { kw: 80, component: 'Commercial inverter 80kW' },
+      { kw: 100, component: 'Commercial inverter 100kW' },
+      { kw: 200, component: 'Commercial inverter 200kW' },
+      { kw: 300, component: 'Commercial inverter 300kW' },
+    ],
+    stand: { component: 'Alqema Stand', panelsPerStand: 2 },
+    /**
+     * Seeded from the household BOM and pending confirmation: a 300-panel
+     * job very likely does not use the same balance-of-system ratios as a
+     * 30-panel one (docs/PRICING-INPUTS.md).
+     */
+    perPanel: [
+      { component: 'Mounting clamp', qty: 2 },
+      { component: 'DC Cable 2x6mm', qty: 4 },
+      { component: 'AC Cable 2x10mm', qty: 1 },
+    ],
+    perInverter: [{ component: 'MCCB DC Switch', qty: 1 }],
+    fixed: [
+      { component: 'DC Cable 35mm', qty: 10 },
+      { component: 'MTS Switch', qty: 1 },
+      { component: 'Busbar', qty: 1 },
+      { component: 'AC Combiner', qty: 1 },
+      { component: 'Installation', qty: 1 },
+      { component: 'Install consumables', qty: 2 },
+      { component: 'Transport & handling', qty: 1 },
+    ],
+    roundUpToLyd: 500,
+    /**
+     * The method picks the inverter from the day load alone, but sizes the
+     * array to carry that load and recharge the bank at the same time. Its
+     * own Example 1 puts a 93.75 kW array behind a 30 kW inverter. Above this
+     * ratio the build is flagged for an engineer rather than quietly issued.
+     */
+    maxDcAcRatio: 1.3,
+  },
+
   /** Retail unit prices — custom/BOM path and invoice reconciliation only. */
   components: {
     'Inverter 1050': 675,

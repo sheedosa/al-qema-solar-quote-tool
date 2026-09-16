@@ -3,10 +3,19 @@ import type { Session } from '@supabase/supabase-js'
 import { C } from '../theme'
 import { Login } from './Login'
 import { PricingEditor } from './PricingEditor'
+import { SizingCalculator } from './SizingCalculator'
 import { Submissions } from './Submissions'
 import { isDemoMode } from './demoClient'
 import { supabase } from './supabaseClient'
 import { useIsMobile } from './useIsMobile'
+
+type TabId = 'submissions' | 'pricing' | 'sizing'
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'submissions', label: 'Leads' },
+  { id: 'pricing', label: 'Pricing' },
+  { id: 'sizing', label: 'Sizing' },
+]
 
 /**
  * Internal company panel at #/admin. English/LTR by design — it deliberately
@@ -15,7 +24,7 @@ import { useIsMobile } from './useIsMobile'
 export default function AdminApp() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
-  const [tab, setTab] = useState<'submissions' | 'pricing'>('submissions')
+  const [tab, setTab] = useState<TabId>('submissions')
   const isMobile = useIsMobile()
 
   useEffect(() => {
@@ -39,7 +48,9 @@ export default function AdminApp() {
   const tabStyle = (active: boolean): React.CSSProperties => ({
     // 44px is the minimum comfortable touch target; the old 38px was below it.
     minHeight: 44,
-    padding: isMobile ? '0 12px' : '0 18px',
+    // Three tabs against a 390px screen: the padding is what has to give,
+    // not the 44px height or the text.
+    padding: isMobile ? '0 6px' : '0 18px',
     // Equal share of the row on mobile so the two tabs read as one control.
     flex: isMobile ? 1 : 'none',
     borderRadius: 10,
@@ -49,7 +60,7 @@ export default function AdminApp() {
     border: `1px solid ${active ? C.red : C.border}`,
     background: active ? C.red : C.white,
     color: active ? C.white : C.body,
-    fontSize: 14,
+    fontSize: isMobile ? 13.5 : 14,
     fontWeight: 600,
     cursor: 'pointer',
   })
@@ -173,24 +184,18 @@ export default function AdminApp() {
             aria-label="Admin sections"
             style={{ display: 'flex', gap: 8, flex: isMobile ? 'none' : 1, justifyContent: 'flex-end' }}
           >
-            <button
-              className="admin-focusable"
-              role="tab"
-              aria-selected={tab === 'submissions'}
-              style={tabStyle(tab === 'submissions')}
-              onClick={() => setTab('submissions')}
-            >
-              Submissions
-            </button>
-            <button
-              className="admin-focusable"
-              role="tab"
-              aria-selected={tab === 'pricing'}
-              style={tabStyle(tab === 'pricing')}
-              onClick={() => setTab('pricing')}
-            >
-              Pricing
-            </button>
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                className="admin-focusable"
+                role="tab"
+                aria-selected={tab === t.id}
+                style={tabStyle(tab === t.id)}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
       </header>
@@ -219,6 +224,11 @@ export default function AdminApp() {
         <div style={{ display: tab === 'pricing' ? 'block' : 'none' }}>
           <PricingEditor />
         </div>
+        {/*
+          Mounted on first visit rather than with the others: it is the only
+          tab most staff will never open, and it carries its own config fetch.
+        */}
+        {tab === 'sizing' && <SizingCalculator />}
       </main>
     </div>
   )

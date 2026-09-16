@@ -75,6 +75,112 @@ export type CustomBomConfig = {
   maximumLyd: number
 }
 
+/**
+ * The client's own method for sizing large (commercial) installations, which
+ * is a different procedure from the household one — not a bigger version of
+ * it. Its worked examples land on 45–75 batteries, 150–305 panels and 30–80 kW
+ * inverters, where the packages top out at 11 kVA.
+ *
+ * Its constants deliberately differ from `sizing`: 0.8 battery efficiency
+ * rather than a 0.9 lithium DoD, 0.8 system efficiency rather than 0.75,
+ * 5 peak sun hours rather than 5.5, and a 615 W panel rather than the 590 W
+ * Jinko. Keeping them in their own block is the point — changing the
+ * household figures must never move a commercial quote, or the reverse.
+ */
+export type CommercialConfig = {
+  /** Usable share of a battery's nameplate energy. */
+  batteryEfficiency: number
+  /** Array derating for losses, temperature and wiring. */
+  systemEfficiency: number
+  /**
+   * Hours the array has to both carry the day load and refill the bank.
+   * Held separately from the battery unit size even though both are 5 today:
+   * the method's `/5` does double duty, and the client's own implementation
+   * note asks for the two to be split so either can move alone.
+   */
+  peakSunHours: number
+  battery: { component: string; kwhEach: number }
+  panel: { component: string; watts: number }
+  /**
+   * The standard inverter sizes actually stocked, ascending. The smallest rung
+   * at or above the peak load is chosen — there is no interpolation.
+   */
+  inverterLadder: { kw: number; component: string }[]
+  stand: { component: string; panelsPerStand: number }
+  perPanel: BomLineSpec[]
+  perInverter: BomLineSpec[]
+  fixed: BomLineSpec[]
+  roundUpToLyd: number
+  /**
+   * Array kW ÷ inverter kW above which the build is flagged for review. The
+   * method sizes the inverter from the day load alone while sizing the array
+   * to carry that load AND recharge the bank, so the two can disagree by 3×.
+   */
+  maxDcAcRatio: number
+}
+
+/** What the engineer types in. Every figure comes from a bill or a survey. */
+export type CommercialInput = {
+  /** Daily energy that must come out of the batteries, kWh. */
+  batteryKwh: number
+  /** Load the array carries directly during the day, kW. */
+  dayLoadKw: number
+  /** Peak load the inverter must cover, kW. Defaults to the day load. */
+  peakKw: number
+}
+
+export type CommercialFlag =
+  /** Peak load is below the smallest rung — the packages are the right tool. */
+  | 'residentialScale'
+  /** Peak load exceeds the largest rung; the size shown is clamped. */
+  | 'aboveLargestInverter'
+  /** The array is far larger than the inverter the method selects. */
+  | 'dcAcRatioHigh'
+
+export type CommercialSizing = {
+  /** batteryKwh ÷ batteryEfficiency. */
+  grossKwh: number
+  batteries: number
+  /** Power needed to refill the installed bank within the sun window. */
+  chargeKw: number
+  /** dayLoadKw + chargeKw, before losses. */
+  arrayNetKw: number
+  /** The DC array after losses. */
+  arrayKw: number
+  panels: number
+  /** The ladder rung chosen from the peak load, as the method specifies. */
+  inverterKw: number
+  /** What the rung would be if the inverter also carried the charging. */
+  inverterKwWithCharging: number
+  dcAcRatio: number
+  flags: CommercialFlag[]
+}
+
+/**
+ * A BOM line that may not have a price yet.
+ *
+ * The household BOM throws on an unknown component, which is right when a
+ * customer is waiting for a number. Here it is wrong: the commercial rate card
+ * does not exist yet, and the honest output is "priced, with three items still
+ * to price" rather than a total that quietly omits them.
+ */
+export type CommercialBomLine = {
+  name: string
+  qty: number
+  unitLyd: number | null
+  totalLyd: number | null
+}
+
+export type CommercialBuild = {
+  lines: CommercialBomLine[]
+  /** Sum of the lines that have a price. */
+  subtotalLyd: number
+  /** subtotalLyd rounded up to roundUpToLyd. */
+  totalLyd: number
+  /** Components with no entry in the rate card, in line order. */
+  unpricedComponents: string[]
+}
+
 export type CustomBomLine = { name: string; qty: number; unitLyd: number; totalLyd: number }
 
 export type CustomBuild = {
@@ -100,6 +206,13 @@ export type PricingConfig = {
   batteryLifespanYears: { liquid: number; lithium: number }
   components: Record<string, number>
   customBom: CustomBomConfig
+  /**
+   * Optional, and deliberately so: this validator also gates the customer
+   * boot path, so making the block mandatory would invalidate the live config
+   * and drop every visitor to bundled prices. Absent, the sizing calculator
+   * falls back to the bundled constants; present, it is validated in full.
+   */
+  commercial?: CommercialConfig
   loadDefaults: {
     acWattsPerBtu: { standard: number; inverter: number }
     assumedAcBtu: number

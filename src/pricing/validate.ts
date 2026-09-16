@@ -287,6 +287,75 @@ export function validatePricingConfig(x: unknown): ValidationResult {
     }
   }
 
+  // --- commercial (optional) ----------------------------------------------
+  // Absent is legal. This validator gates the customer boot path as well as
+  // the admin save, so requiring a block the live config predates would take
+  // every visitor down to bundled prices to protect an internal calculator.
+  if (x.commercial !== undefined) {
+    const cm = x.commercial
+    if (!isRecord(cm)) {
+      bad('commercial', 'not an object')
+    } else {
+      if (!fraction(cm.batteryEfficiency)) {
+        bad('commercial.batteryEfficiency', 'must be between 0 and 1')
+      }
+      if (!fraction(cm.systemEfficiency)) {
+        bad('commercial.systemEfficiency', 'must be between 0 and 1')
+      }
+      if (!finitePos(cm.peakSunHours) || cm.peakSunHours > 12) {
+        bad('commercial.peakSunHours', 'must be between 0 and 12')
+      }
+      // Component names are NOT required to exist in the rate card here: the
+      // commercial prices have not been confirmed, and the calculator reports
+      // an unpriced line rather than refusing to load the whole config.
+      const panel = cm.panel
+      if (!isRecord(panel) || !nonEmptyString(panel.component) || !finitePos(panel.watts)) {
+        bad('commercial.panel', 'needs a component name and watts > 0')
+      }
+      const battery = cm.battery
+      if (!isRecord(battery) || !nonEmptyString(battery.component) || !finitePos(battery.kwhEach)) {
+        bad('commercial.battery', 'needs a component name and kwhEach > 0')
+      }
+      const stand = cm.stand
+      if (!isRecord(stand) || !nonEmptyString(stand.component) || !posInt(stand.panelsPerStand)) {
+        bad('commercial.stand', 'needs a component name and integer panelsPerStand > 0')
+      }
+      const ladder = cm.inverterLadder
+      if (!Array.isArray(ladder) || ladder.length === 0) {
+        bad('commercial.inverterLadder', 'needs at least one size')
+      } else {
+        let prevKw = 0
+        ladder.forEach((rung: unknown, i: number) => {
+          const at = 'commercial.inverterLadder[' + i + ']'
+          if (!isRecord(rung) || !finitePos(rung.kw) || !nonEmptyString(rung.component)) {
+            bad(at, 'needs kw > 0 and a component name')
+            return
+          }
+          // The chooser takes the first rung at or above the load, so an
+          // out-of-order ladder would hand back the wrong machine.
+          if (rung.kw <= prevKw) bad(at + '.kw', 'sizes must ascend')
+          prevKw = rung.kw
+        })
+      }
+      for (const listKey of ['perPanel', 'perInverter', 'fixed'] as const) {
+        const list = cm[listKey]
+        if (!Array.isArray(list)) {
+          bad('commercial.' + listKey, 'must be an array')
+          continue
+        }
+        list.forEach((item: unknown, i: number) => {
+          const at = 'commercial.' + listKey + '[' + i + ']'
+          if (!isRecord(item) || !finitePos(item.qty)) bad(at, 'needs qty > 0')
+          else if (!nonEmptyString(item.component)) bad(at + '.component', 'needs a name')
+        })
+      }
+      if (!finitePos(cm.roundUpToLyd)) bad('commercial.roundUpToLyd', 'must be positive')
+      if (!finitePos(cm.maxDcAcRatio) || cm.maxDcAcRatio < 1) {
+        bad('commercial.maxDcAcRatio', 'must be at least 1')
+      }
+    }
+  }
+
   if (errors.length > 0) return { ok: false, errors }
   return { ok: true, config: x as unknown as PricingConfig }
 }
