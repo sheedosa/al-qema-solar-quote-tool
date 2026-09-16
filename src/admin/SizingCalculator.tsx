@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { C, cardStyle } from '../theme'
 import { priceCommercialBom, sizeCommercial } from '../pricing/commercial'
 import { PRICING_CONFIG } from '../pricing/config'
-import type {
-  CommercialConfig,
-  CommercialFlag,
-  CommercialSizing,
-  PricingConfig,
-} from '../pricing/types'
-import { Field, Num, label, sectionTitle } from './controls'
+import type { CommercialConfig, CommercialSizing, PricingConfig } from '../pricing/types'
+import { Auto, Field, Ltr, Money, Num, TdNum, label, sectionTitle, tdNum, tdText, thNum, thText } from './controls'
+import { fmtNum, fmtPrice, plural } from './format'
+import { useAdminLang } from './i18n'
+import type { AdminStrings } from './strings'
 import { supabase } from './supabaseClient'
 import { MobileContext, useIsMobile } from './useIsMobile'
 
@@ -21,19 +20,9 @@ import { MobileContext, useIsMobile } from './useIsMobile'
  * appliance checklist and cannot reach this scale.
  */
 
-const FLAG_TEXT: Record<CommercialFlag, string> = {
-  residentialScale:
-    'This is a household-sized load. The smallest stocked inverter is far bigger than it needs — quote it from the packages instead.',
-  aboveLargestInverter:
-    'The peak load is above the largest stocked inverter, so the size shown is capped. This job needs multiple units and an engineer.',
-  dcAcRatioHigh:
-    'The array is much larger than the inverter the method selects. The method sizes the inverter from the daytime load alone, but the array also has to recharge the battery bank — confirm whether the inverter carries the charging, or whether separate charge controllers do.',
-}
+const num = (n: number) => fmtNum(n, 2)
 
-const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
-const fmtLyd = (n: number) => n.toLocaleString('en-US') + ' LYD'
-
-function Stat({ value, unit, caption }: { value: string; unit: string; caption: string }) {
+function Stat({ value, unit, caption }: { value: string; unit: string; caption: ReactNode }) {
   return (
     <div
       style={{
@@ -45,39 +34,51 @@ function Stat({ value, unit, caption }: { value: string; unit: string; caption: 
         border: `1px solid ${C.border}`,
       }}
     >
-      <div style={{ fontSize: 22, fontWeight: 700, color: C.ink, lineHeight: 1.15 }}>
-        {value}
-        <span style={{ fontSize: 13, fontWeight: 600, color: C.muted, marginInlineStart: 4 }}>
-          {unit}
-        </span>
+      {/* Value and unit are two isolates: "× 5 kWh" starts with a neutral and
+          would otherwise jump to the other side of the number in Arabic. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, color: C.ink, lineHeight: 1.15 }}>
+        <Ltr style={{ fontSize: 22, fontWeight: 700 }}>{value}</Ltr>
+        <Ltr style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>{unit}</Ltr>
       </div>
       <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{caption}</div>
     </div>
   )
 }
 
-/** One step of the arithmetic, so an engineer can check it against paper. */
-function Step({ children }: { children: React.ReactNode }) {
+/**
+ * One line of the arithmetic, so an engineer can check it against paper. The
+ * maths is an LTR monospace run in both languages; the note follows the
+ * document. Mixing the two in one string is what scrambled under RTL.
+ */
+function Step({ math, note }: { math: string; note: string }) {
   return (
     <li style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.7 }}>
-      <span style={{ fontFamily: 'ui-monospace, monospace' }}>{children}</span>
+      <Ltr style={{ fontFamily: 'ui-monospace, monospace', whiteSpace: 'normal' }}>{math}</Ltr>
+      <span style={{ marginInlineStart: 8 }}>— {note}</span>
     </li>
   )
 }
 
-function summaryText(s: CommercialSizing, cm: CommercialConfig, priced: string): string {
+function summaryText(
+  s: CommercialSizing,
+  cm: CommercialConfig,
+  priced: string,
+  t: AdminStrings['sizing']['summary'],
+): string {
   return [
-    'Indicative sizing — not a customer quote',
+    t.title,
     '',
-    `Batteries: ${s.batteries} × ${cm.battery.kwhEach} kWh (${fmt(s.grossKwh)} kWh gross)`,
-    `Panels: ${s.panels} × ${cm.panel.watts} W (${fmt(s.arrayKw)} kW array)`,
-    `Inverter: ${s.inverterKw} kW`,
+    `${t.batteries}: ${s.batteries} × ${cm.battery.kwhEach} kWh (${num(s.grossKwh)} kWh ${t.gross})`,
+    `${t.panels}: ${s.panels} × ${cm.panel.watts} W (${num(s.arrayKw)} kW ${t.array})`,
+    `${t.inverter}: ${s.inverterKw} kW`,
     priced,
   ].join('\n')
 }
 
 export function SizingCalculator() {
   const isMobile = useIsMobile()
+  const { t, lang } = useAdminLang()
+  const z = t.sizing
   const [cfg, setCfg] = useState<PricingConfig>(PRICING_CONFIG)
   const [source, setSource] = useState<'bundled' | 'live'>('bundled')
   const [batteryKwh, setBatteryKwh] = useState<number | null>(180)
@@ -111,6 +112,8 @@ export function SizingCalculator() {
   const commercial: CommercialConfig = cfg.commercial ?? (PRICING_CONFIG.commercial as CommercialConfig)
   const usingBundledMethod = cfg.commercial === undefined
 
+  const effectivePeak = peakKw ?? dayLoadKw ?? 0
+
   const result = useMemo(
     () =>
       sizeCommercial(
@@ -118,11 +121,11 @@ export function SizingCalculator() {
           batteryKwh: batteryKwh ?? 0,
           dayLoadKw: dayLoadKw ?? 0,
           // The peak defaults to the daytime load, as the method specifies.
-          peakKw: peakKw ?? dayLoadKw ?? 0,
+          peakKw: effectivePeak,
         },
         commercial,
       ),
-    [batteryKwh, dayLoadKw, peakKw, commercial],
+    [batteryKwh, dayLoadKw, effectivePeak, commercial],
   )
 
   const build = useMemo(
@@ -132,16 +135,19 @@ export function SizingCalculator() {
 
   const copy = () => {
     if (!result.ok || !build) return
+    const total = fmtPrice(build.totalLyd, t.common.currency)
     const priced =
       build.unpricedComponents.length > 0
-        ? `Indicative parts total: ${fmtLyd(build.totalLyd)} (${build.unpricedComponents.length} item(s) still unpriced)`
-        : `Indicative parts total: ${fmtLyd(build.totalLyd)}`
-    void navigator.clipboard?.writeText(summaryText(result.sizing, commercial, priced))
+        ? `${z.summary.partsTotal}: ${total} (${plural(build.unpricedComponents.length, z.summary.stillUnpriced, lang)})`
+        : `${z.summary.partsTotal}: ${total}`
+    void navigator.clipboard?.writeText(summaryText(result.sizing, commercial, priced, z.summary))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   const gridCols = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
+  const compact = { padding: '7px 8px', fontSize: 13 } as const
+  const compactTh = { padding: '6px 8px', fontSize: 11.5, borderBottom: 'none' } as const
 
   return (
     <MobileContext.Provider value={isMobile}>
@@ -164,27 +170,30 @@ export function SizingCalculator() {
             lineHeight: 1.5,
           }}
         >
-          Internal estimate — not a customer quote. Sized with Al Qema’s commercial
-          method; prices are indicative and every figure needs an engineer’s sign-off.
+          {z.banner}
         </div>
 
         <div style={{ ...cardStyle, padding: isMobile ? 16 : 20 }}>
-          <div style={sectionTitle}>The job</div>
+          <div style={sectionTitle}>{z.job}</div>
           <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 14 }}>
-            <Field name="Daily battery energy (kWh)">
+            <Field name={z.batteryKwh}>
               <Num value={batteryKwh} onChange={setBatteryKwh} width={150} />
             </Field>
-            <Field name="Daytime load (kW)">
+            <Field name={z.dayLoadKw}>
               <Num value={dayLoadKw} onChange={setDayLoadKw} width={150} />
             </Field>
-            <Field name="Peak load (kW)">
+            <Field name={z.peakKw}>
               <Num value={peakKw} onChange={setPeakKw} width={150} />
             </Field>
           </div>
           <div style={{ ...label, marginTop: 10, lineHeight: 1.6 }}>
-            Battery energy is what has to come out of the bank overnight. Daytime load is
-            what the panels carry directly. Peak defaults to the daytime load
-            {peakKw === null && dayLoadKw ? ' — using ' + fmt(dayLoadKw) + ' kW' : ''}.
+            {z.help}
+            {peakKw === null && dayLoadKw ? (
+              <>
+                {' '}
+                {z.usingPeak} <Ltr>{num(dayLoadKw)} kW</Ltr>.
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -197,12 +206,14 @@ export function SizingCalculator() {
               background: C.redTint,
             }}
           >
-            <div style={{ fontWeight: 700, color: C.red, fontSize: 14, marginBottom: 6 }}>
-              Check the numbers
-            </div>
+            <div style={{ fontWeight: 700, color: C.red, fontSize: 14, marginBottom: 6 }}>{z.checkNumbers}</div>
+            {/* Messages come from the pricing module in English; each is its
+                own paragraph so it aligns as itself. */}
             <ul style={{ margin: 0, paddingInlineStart: 18, color: C.body, fontSize: 13 }}>
               {result.errors.map((e) => (
-                <li key={e}>{e}</li>
+                <li key={e} dir="auto" style={{ textAlign: 'start' }}>
+                  {e}
+                </li>
               ))}
             </ul>
           </div>
@@ -211,45 +222,42 @@ export function SizingCalculator() {
         {result.ok && (
           <>
             <div style={{ ...cardStyle, padding: isMobile ? 16 : 20 }}>
-              <div style={sectionTitle}>System</div>
+              <div style={sectionTitle}>{z.system}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 <Stat
                   value={String(result.sizing.batteries)}
                   unit={'× ' + commercial.battery.kwhEach + ' kWh'}
-                  caption="batteries"
+                  caption={z.batteries}
                 />
                 <Stat
                   value={String(result.sizing.panels)}
                   unit={'× ' + commercial.panel.watts + ' W'}
-                  caption={fmt(result.sizing.arrayKw) + ' kW array'}
+                  caption={
+                    <>
+                      <Ltr>{num(result.sizing.arrayKw)} kW</Ltr> {z.arrayCaption}
+                    </>
+                  }
                 />
-                <Stat
-                  value={String(result.sizing.inverterKw)}
-                  unit="kW"
-                  caption="inverter"
-                />
+                <Stat value={String(result.sizing.inverterKw)} unit="kW" caption={z.inverter} />
               </div>
 
               <ul style={{ margin: '14px 0 0', paddingInlineStart: 18 }}>
-                <Step>
-                  {fmt(batteryKwh ?? 0)} ÷ {commercial.batteryEfficiency} ={' '}
-                  {fmt(result.sizing.grossKwh)} kWh gross → ÷ {commercial.battery.kwhEach} ={' '}
-                  {result.sizing.batteries} batteries
-                </Step>
-                <Step>
-                  {result.sizing.batteries} × {commercial.battery.kwhEach} ÷{' '}
-                  {commercial.peakSunHours} h = {fmt(result.sizing.chargeKw)} kW to recharge
-                </Step>
-                <Step>
-                  {fmt(dayLoadKw ?? 0)} + {fmt(result.sizing.chargeKw)} ={' '}
-                  {fmt(result.sizing.arrayNetKw)} kW ÷ {commercial.systemEfficiency} ={' '}
-                  {fmt(result.sizing.arrayKw)} kW → ÷ {commercial.panel.watts} W ={' '}
-                  {result.sizing.panels} panels
-                </Step>
-                <Step>
-                  peak {fmt(peakKw ?? dayLoadKw ?? 0)} kW → {result.sizing.inverterKw} kW (load +
-                  charging would be {result.sizing.inverterKwWithCharging} kW)
-                </Step>
+                <Step
+                  math={`${num(batteryKwh ?? 0)} ÷ ${commercial.batteryEfficiency} = ${num(result.sizing.grossKwh)} kWh → ÷ ${commercial.battery.kwhEach} = ${result.sizing.batteries}`}
+                  note={z.steps.gross}
+                />
+                <Step
+                  math={`${result.sizing.batteries} × ${commercial.battery.kwhEach} ÷ ${commercial.peakSunHours} h = ${num(result.sizing.chargeKw)} kW`}
+                  note={z.steps.recharge}
+                />
+                <Step
+                  math={`${num(dayLoadKw ?? 0)} + ${num(result.sizing.chargeKw)} = ${num(result.sizing.arrayNetKw)} kW ÷ ${commercial.systemEfficiency} = ${num(result.sizing.arrayKw)} kW → ÷ ${commercial.panel.watts} W = ${result.sizing.panels}`}
+                  note={z.steps.array}
+                />
+                <Step
+                  math={`${num(effectivePeak)} kW → ${result.sizing.inverterKw} kW`}
+                  note={`${z.steps.inverter} (${z.loadPlusCharging} ${result.sizing.inverterKwWithCharging} kW)`}
+                />
               </ul>
 
               <button
@@ -269,7 +277,7 @@ export function SizingCalculator() {
                   cursor: 'pointer',
                 }}
               >
-                {copied ? 'Copied' : 'Copy summary'}
+                {copied ? t.common.copied : t.common.copy}
               </button>
             </div>
 
@@ -283,7 +291,7 @@ export function SizingCalculator() {
                 }}
               >
                 <div style={{ fontWeight: 700, color: C.amber, fontSize: 14, marginBottom: 6 }}>
-                  Check before quoting
+                  {z.checkBeforeQuoting}
                 </div>
                 <ul
                   style={{
@@ -295,7 +303,7 @@ export function SizingCalculator() {
                   }}
                 >
                   {result.sizing.flags.map((f) => (
-                    <li key={f}>{FLAG_TEXT[f]}</li>
+                    <li key={f}>{t.labels.flag[f]}</li>
                   ))}
                 </ul>
               </div>
@@ -303,52 +311,60 @@ export function SizingCalculator() {
 
             {build && (
               <div style={{ ...cardStyle, padding: isMobile ? 16 : 20 }}>
-                <div style={sectionTitle}>Indicative parts list</div>
+                <div style={sectionTitle}>{z.partsList}</div>
                 {/*
                   The table scrolls inside its card rather than bursting out of
                   it — four nowrap columns do not fit 390px.
                 */}
                 <div className="admin-scroll-x">
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ textAlign: 'left', color: C.muted, fontSize: 11.5 }}>
-                        <th style={{ padding: '6px 8px 6px 0', fontWeight: 600 }}>ITEM</th>
-                        <th style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          QTY
-                        </th>
-                        <th style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          UNIT
-                        </th>
-                        <th style={{ padding: '6px 0 6px 8px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          TOTAL
-                        </th>
+                      <tr>
+                        <th style={{ ...thText, ...compactTh, paddingInlineStart: 0 }}>{z.cols.item}</th>
+                        <th style={{ ...thNum, ...compactTh }}>{z.cols.qty}</th>
+                        <th style={{ ...thNum, ...compactTh }}>{z.cols.unit}</th>
+                        <th style={{ ...thNum, ...compactTh, paddingInlineEnd: 0 }}>{z.cols.total}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {build.lines.map((l) => (
-                        <tr key={l.name} style={{ borderTop: `1px solid ${C.border}` }}>
-                          <td style={{ padding: '7px 8px 7px 0', color: C.body }}>{l.name}</td>
-                          <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>{l.qty}</td>
-                          <td
-                            style={{
-                              padding: '7px 8px',
-                              whiteSpace: 'nowrap',
-                              color: l.unitLyd === null ? C.amber : C.body,
-                              fontWeight: l.unitLyd === null ? 600 : 400,
-                            }}
-                          >
-                            {l.unitLyd === null ? 'no price' : fmt(l.unitLyd)}
+                        <tr key={l.name}>
+                          <td style={{ ...tdText, ...compact, paddingInlineStart: 0, borderBottom: 'none', borderTop: `1px solid ${C.border}` }}>
+                            <Auto>{l.name}</Auto>
                           </td>
-                          <td
+                          <TdNum style={{ ...compact, borderBottom: 'none', borderTop: `1px solid ${C.border}` }}>
+                            {l.qty}
+                          </TdNum>
+                          {l.unitLyd === null ? (
+                            <td
+                              style={{
+                                ...tdNum,
+                                ...compact,
+                                borderBottom: 'none',
+                                borderTop: `1px solid ${C.border}`,
+                                color: C.amber,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {z.noPrice}
+                            </td>
+                          ) : (
+                            <TdNum style={{ ...compact, borderBottom: 'none', borderTop: `1px solid ${C.border}` }}>
+                              {fmtNum(l.unitLyd)}
+                            </TdNum>
+                          )}
+                          <TdNum
                             style={{
-                              padding: '7px 0 7px 8px',
-                              whiteSpace: 'nowrap',
+                              ...compact,
+                              paddingInlineEnd: 0,
+                              borderBottom: 'none',
+                              borderTop: `1px solid ${C.border}`,
                               fontWeight: 600,
                               color: l.totalLyd === null ? C.faint : C.ink,
                             }}
                           >
-                            {l.totalLyd === null ? '—' : fmt(l.totalLyd)}
-                          </td>
+                            {l.totalLyd === null ? t.common.dash : fmtNum(l.totalLyd)}
+                          </TdNum>
                         </tr>
                       ))}
                     </tbody>
@@ -367,10 +383,8 @@ export function SizingCalculator() {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <span style={{ fontSize: 13, color: C.muted }}>Priced items, rounded up</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: C.ink }}>
-                    {fmtLyd(build.totalLyd)}
-                  </span>
+                  <span style={{ fontSize: 13, color: C.muted }}>{z.pricedRounded}</span>
+                  <Money n={build.totalLyd} style={{ fontSize: 20, fontWeight: 700, color: C.ink }} />
                 </div>
 
                 {build.unpricedComponents.length > 0 && (
@@ -383,9 +397,14 @@ export function SizingCalculator() {
                       fontWeight: 600,
                     }}
                   >
-                    {build.unpricedComponents.length} item(s) are not in the price list, so the
-                    total above is incomplete: {build.unpricedComponents.join(', ')}. Add them in
-                    Pricing → Component price list and this fills in.
+                    {plural(build.unpricedComponents.length, z.unpricedNote, lang)}{' '}
+                    {build.unpricedComponents.map((n, i) => (
+                      <span key={n}>
+                        {i > 0 && (lang === 'ar' ? '، ' : ', ')}
+                        <Auto>{n}</Auto>
+                      </span>
+                    ))}
+                    . {z.unpricedHint}
                   </div>
                 )}
               </div>
@@ -394,13 +413,13 @@ export function SizingCalculator() {
         )}
 
         <div style={{ ...label, lineHeight: 1.6 }}>
-          Method: {commercial.batteryEfficiency} battery efficiency ·{' '}
-          {commercial.systemEfficiency} system efficiency · {commercial.peakSunHours} peak sun
-          hours · {commercial.panel.watts} W panels · {commercial.battery.kwhEach} kWh batteries.
-          {usingBundledMethod
-            ? ' These are the built-in figures — publish the pricing config once to make them editable.'
-            : ''}
-          {source === 'bundled' ? ' Component prices are the built-in list.' : ''}
+          {z.method}: <Ltr>{commercial.batteryEfficiency}</Ltr> {z.methodParts.batteryEff} ·{' '}
+          <Ltr>{commercial.systemEfficiency}</Ltr> {z.methodParts.systemEff} ·{' '}
+          <Ltr>{commercial.peakSunHours}</Ltr> {z.methodParts.sunHours} ·{' '}
+          <Ltr>{commercial.panel.watts}</Ltr> {z.methodParts.panels} ·{' '}
+          <Ltr>{commercial.battery.kwhEach}</Ltr> {z.methodParts.batteries}.
+          {usingBundledMethod ? ' ' + z.builtInFigures : ''}
+          {source === 'bundled' ? ' ' + z.builtInPrices : ''}
         </div>
       </div>
     </MobileContext.Provider>

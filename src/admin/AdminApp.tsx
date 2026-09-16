@@ -1,37 +1,40 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { C } from '../theme'
+import { LangToggle } from './controls'
+import { AdminLangProvider, useAdminLang } from './i18n'
 import { Login } from './Login'
 import { PricingEditor } from './PricingEditor'
 import { SizingCalculator } from './SizingCalculator'
 import { Submissions } from './Submissions'
 import { isDemoMode } from './demoClient'
+import type { TabId } from './strings'
 import { supabase } from './supabaseClient'
 import { useIsMobile } from './useIsMobile'
 
-type TabId = 'submissions' | 'pricing' | 'sizing'
-
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'submissions', label: 'Leads' },
-  { id: 'pricing', label: 'Pricing' },
-  { id: 'sizing', label: 'Sizing' },
-]
+const TAB_IDS: TabId[] = ['submissions', 'pricing', 'sizing']
 
 /**
- * Internal company panel at #/admin. English/LTR by design — it deliberately
- * does not use the customer i18n layer.
+ * Internal company panel at #/admin.
+ *
+ * Bilingual, with its own language provider — independent of the customer
+ * site's, remembered per device, Arabic by default. The provider owns the
+ * document's `lang`, `dir` and title, so nothing below sets them.
  */
 export default function AdminApp() {
+  return (
+    <AdminLangProvider>
+      <AdminShell />
+    </AdminLangProvider>
+  )
+}
+
+function AdminShell() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
   const [tab, setTab] = useState<TabId>('submissions')
   const isMobile = useIsMobile()
-
-  useEffect(() => {
-    document.documentElement.dir = 'ltr'
-    document.documentElement.lang = 'en'
-    document.title = 'Al Qema — Admin'
-  }, [])
+  const { t } = useAdminLang()
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -85,8 +88,7 @@ export default function AdminApp() {
             padding: '8px 16px',
           }}
         >
-          DEMO MODE — sample data only. These are not real customers, and
-          nothing you change here is saved.
+          {t.app.demoBanner}
         </div>
       )}
       <header
@@ -146,7 +148,7 @@ export default function AdminApp() {
                 whiteSpace: 'nowrap',
               }}
             >
-              Al Qema — Admin
+              {t.app.title}
             </div>
             {/*
               The signed-in email is a ~130px unbreakable string and was the
@@ -154,10 +156,16 @@ export default function AdminApp() {
               they need hourly, so on a phone it gives way to Sign out.
             */}
             {!isMobile && (
-              <span style={{ fontSize: 12.5, color: C.muted, marginLeft: 8 }}>
+              <span style={{ fontSize: 12.5, color: C.muted, marginInlineStart: 8 }}>
                 {session.user.email}
               </span>
             )}
+            {/*
+              On a phone the toggle is one 44px button showing the other
+              language; the row already carries the logo, the title and Sign
+              out against 390px, and the title has the ellipsis to give.
+            */}
+            <LangToggle compact={isMobile} />
             <button
               className="admin-focusable"
               onClick={() => void supabase.auth.signOut()}
@@ -175,25 +183,27 @@ export default function AdminApp() {
                 cursor: 'pointer',
               }}
             >
-              Sign out
+              {t.app.signOut}
             </button>
           </div>
 
           <div
             role="tablist"
-            aria-label="Admin sections"
+            aria-label={t.app.tablistLabel}
+            // `flex-end` is already logical in a flex row: in Arabic the tabs
+            // sit at the left edge and read right-to-left.
             style={{ display: 'flex', gap: 8, flex: isMobile ? 'none' : 1, justifyContent: 'flex-end' }}
           >
-            {TABS.map((t) => (
+            {TAB_IDS.map((id) => (
               <button
-                key={t.id}
+                key={id}
                 className="admin-focusable"
                 role="tab"
-                aria-selected={tab === t.id}
-                style={tabStyle(tab === t.id)}
-                onClick={() => setTab(t.id)}
+                aria-selected={tab === id}
+                style={tabStyle(tab === id)}
+                onClick={() => setTab(id)}
               >
-                {t.label}
+                {t.app.tab[id]}
               </button>
             ))}
           </div>

@@ -778,7 +778,11 @@ const AR: Strings = {
         waContextAr(q),
 }
 
-const BUNDLES: Record<Lang, Strings> = { en: EN, ar: AR }
+/**
+ * Exported for the admin panel, which reuses the `opt` label maps to show
+ * stored form values in the staff's language rather than as raw codes.
+ */
+export const BUNDLES: Record<Lang, Strings> = { en: EN, ar: AR }
 
 type LangContextValue = {
   lang: Lang

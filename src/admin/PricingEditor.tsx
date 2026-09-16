@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { C, cardStyle } from '../theme'
-import { ComponentSelect, Field, Num, label, numStyle, sectionTitle } from './controls'
+import { Auto, ComponentSelect, Field, Ltr, Num, label, numStyle, sectionTitle, thText } from './controls'
 import type { PricingConfig } from '../pricing/types'
 import { validatePricingConfig } from '../pricing/validate'
+import { fmtDateTime, plural } from './format'
+import { lookup, useAdminLang } from './i18n'
 import { supabase } from './supabaseClient'
 import { MobileContext, useIsMobile } from './useIsMobile'
 
@@ -33,6 +35,8 @@ export function PricingEditor() {
   // One slot, so opening a confirm on another row cancels the first.
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const isMobile = useIsMobile()
+  const { t, lang, opt } = useAdminLang()
+  const pr = t.pricing
 
   const loadAll = async () => {
     const { data: rows } = await supabase
@@ -93,7 +97,7 @@ export function PricingEditor() {
       .select('id')
       .single()
     if (error || !data) {
-      setErrors([error?.message ?? 'insert failed'])
+      setErrors([error?.message ?? pr.insertFailed])
       setBusy(false)
       return
     }
@@ -101,7 +105,7 @@ export function PricingEditor() {
     if (rpcErr) {
       setErrors([rpcErr.message])
     } else {
-      setNotice('Saved and activated ' + version + ' — live for new visitors immediately.')
+      setNotice(pr.savedNotice(version))
       await loadAll()
     }
     setBusy(false)
@@ -114,13 +118,13 @@ export function PricingEditor() {
     if (error) setErrors([error.message])
     else {
       setErrors([])
-      setNotice('Activated ' + version + '.')
+      setNotice(pr.activatedNotice(version))
       await loadAll()
     }
     setBusy(false)
   }
 
-  if (!cfg) return <div style={{ color: C.muted, padding: 20 }}>Loading pricing config…</div>
+  if (!cfg) return <div style={{ color: C.muted, padding: 20 }}>{pr.loading}</div>
 
   const componentNames = Object.keys(cfg.components)
   // Cheap at this config size, and it drives the bar's label, the button's
@@ -139,10 +143,12 @@ export function PricingEditor() {
       {errors.length > 0 && (
         <div style={{ ...cardStyle, borderInlineStart: `3px solid ${C.red}` }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.red, marginBottom: 6 }}>
-            Cannot save — fix {errors.length === 1 ? 'this' : 'these'} first:
+            {pr.cannotSave}
           </div>
+          {/* Validator text comes from the pricing module in English. Each line
+              is its own paragraph so it aligns as itself, not as Arabic prose. */}
           {errors.map((e) => (
-            <div key={e} style={{ fontSize: 13, color: C.body, lineHeight: 1.5 }}>
+            <div key={e} dir="auto" style={{ fontSize: 13, color: C.body, lineHeight: 1.5, textAlign: 'start' }}>
               · {e}
             </div>
           ))}
@@ -156,18 +162,27 @@ export function PricingEditor() {
 
       {/* Packages */}
       <div style={cardStyle}>
-        <div style={sectionTitle}>Packages</div>
+        <div style={sectionTitle}>{pr.packages}</div>
         <div className="admin-scroll-x">
           <table style={{ borderCollapse: 'separate', borderSpacing: '8px 6px' }}>
             <thead>
               <tr>
-                {['Tier', 'Price (LYD)', 'Inverter kVA', 'Panels', 'Panel W', 'Battery', 'Max ACs', 'Max AC BTU'].map(
-                  (h) => (
-                    <th key={h} style={{ ...label, textAlign: 'left' }}>
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[
+                  pr.cols.tier,
+                  pr.cols.price,
+                  pr.cols.inverterKva,
+                  pr.cols.panels,
+                  pr.cols.panelW,
+                  pr.cols.battery,
+                  pr.cols.maxAcs,
+                  pr.cols.maxAcBtu,
+                ].map((h) => (
+                  // Editable numbers keep start alignment: only read-only
+                  // figures end-align, and every cell here is an input.
+                  <th key={h} style={{ ...thText, padding: '0 0 4px', borderBottom: 'none' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -222,7 +237,7 @@ export function PricingEditor() {
                             })
                           }
                         />
-                        Ah liquid
+                        {pr.unitAhLiquid}
                       </span>
                     ) : (
                       <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
@@ -247,7 +262,7 @@ export function PricingEditor() {
                             })
                           }
                         />
-                        kWh lithium
+                        {pr.unitKwhLithium}
                       </span>
                     )}
                   </td>
@@ -274,7 +289,7 @@ export function PricingEditor() {
 
       {/* Custom BOM */}
       <div style={cardStyle}>
-        <div style={sectionTitle}>Custom-system pricing (BOM)</div>
+        <div style={sectionTitle}>{pr.customBom}</div>
         <div
           style={{
             display: 'grid',
@@ -284,21 +299,21 @@ export function PricingEditor() {
             gap: 16,
           }}
         >
-          <Field name="Minimum price / floor (LYD)">
+          <Field name={pr.minimumPrice}>
             <Num
               value={cfg.customBom.minimumLyd}
               width={130}
               onChange={(n) => patch((c) => void (c.customBom.minimumLyd = n ?? 0))}
             />
           </Field>
-          <Field name="Round up to (LYD)">
+          <Field name={pr.roundUpTo}>
             <Num
               value={cfg.customBom.roundUpToLyd}
               width={90}
               onChange={(n) => patch((c) => void (c.customBom.roundUpToLyd = n ?? 0))}
             />
           </Field>
-          <Field name="Panel">
+          <Field name={pr.panel}>
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
                 options={componentNames}
@@ -313,7 +328,7 @@ export function PricingEditor() {
               <span style={label}>W</span>
             </span>
           </Field>
-          <Field name="Battery">
+          <Field name={pr.battery}>
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
                 options={componentNames}
@@ -328,7 +343,7 @@ export function PricingEditor() {
               <span style={label}>kWh</span>
             </span>
           </Field>
-          <Field name="Single inverter (≤ kW)">
+          <Field name={pr.singleInverter}>
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
                 options={componentNames}
@@ -342,7 +357,7 @@ export function PricingEditor() {
               />
             </span>
           </Field>
-          <Field name="Parallel inverter (kW each)">
+          <Field name={pr.parallelInverter}>
             <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
               <ComponentSelect
                 options={componentNames}
@@ -356,7 +371,7 @@ export function PricingEditor() {
               />
             </span>
           </Field>
-          <Field name="Panels per stand">
+          <Field name={pr.panelsPerStand}>
             <Num
               value={cfg.customBom.stand.panelsPerStand}
               width={60}
@@ -368,7 +383,7 @@ export function PricingEditor() {
 
       {/* Component price list */}
       <div style={cardStyle}>
-        <div style={sectionTitle}>Component price list (LYD)</div>
+        <div style={sectionTitle}>{pr.componentList}</div>
         <div
           style={{
             display: 'grid',
@@ -378,7 +393,9 @@ export function PricingEditor() {
         >
           {componentNames.map((name) => (
             <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: C.body, flex: 1 }}>{name}</span>
+              <span style={{ fontSize: 13, color: C.body, flex: 1, minWidth: 0, textAlign: 'start' }}>
+                <Auto>{name}</Auto>
+              </span>
               <Num
                 value={cfg.components[name]}
                 width={90}
@@ -408,7 +425,7 @@ export function PricingEditor() {
                       cursor: 'pointer',
                     }}
                   >
-                    Cancel
+                    {t.common.cancel}
                   </button>
                   <button
                     className="admin-focusable"
@@ -429,14 +446,14 @@ export function PricingEditor() {
                       cursor: 'pointer',
                     }}
                   >
-                    Delete
+                    {t.common.delete}
                   </button>
                 </>
               ) : (
                 <button
                   className="admin-focusable"
-                  aria-label={'Remove ' + name}
-                  title={'Remove ' + name}
+                  aria-label={pr.removeComponent(name)}
+                  title={pr.removeComponent(name)}
                   onClick={() => setConfirmDel(name)}
                   style={{
                     flex: 'none',
@@ -459,10 +476,12 @@ export function PricingEditor() {
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <input
-            placeholder="New component name"
+            className="admin-input"
+            placeholder={pr.newComponentPlaceholder}
             value={newComponent}
             onChange={(e) => setNewComponent(e.target.value)}
-            style={{ ...numStyle, width: 240 }}
+            dir="auto"
+            style={{ ...numStyle, width: isMobile ? '100%' : 240, minWidth: 0, fontSize: isMobile ? 16 : 14 }}
           />
           <button
             onClick={() => {
@@ -472,8 +491,10 @@ export function PricingEditor() {
                 setNewComponent('')
               }
             }}
+            className="admin-focusable"
             style={{
-              minHeight: 38,
+              // 44px like every other control; this one was 38.
+              minHeight: 44,
               padding: '0 14px',
               borderRadius: 10,
               border: `1px solid ${C.border}`,
@@ -483,14 +504,14 @@ export function PricingEditor() {
               cursor: 'pointer',
             }}
           >
-            Add
+            {t.common.add}
           </button>
         </div>
       </div>
 
       {/* Appliance defaults */}
       <div style={cardStyle}>
-        <div style={sectionTitle}>Appliance assumptions (watts / hours per day)</div>
+        <div style={sectionTitle}>{pr.applianceAssumptions}</div>
         <div
           style={{
             display: 'grid',
@@ -500,9 +521,9 @@ export function PricingEditor() {
         >
           {Object.entries(cfg.loadDefaults.appliancesByName).map(([name, def]) => (
             <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: C.body, flex: 1 }}>
-                {name}
-                {def.alwaysOn ? ' (always on)' : ''}
+              <span style={{ fontSize: 13, color: C.body, flex: 1, minWidth: 0, textAlign: 'start' }}>
+                {lookup(opt.preset, name)}
+                {def.alwaysOn ? ' ' + pr.alwaysOnSuffix : ''}
                 {def.heavy ? ' ⚡' : ''}
               </span>
               <Num
@@ -528,7 +549,7 @@ export function PricingEditor() {
 
       {/* Constants */}
       <div style={cardStyle}>
-        <div style={sectionTitle}>Sizing constants</div>
+        <div style={sectionTitle}>{pr.sizingConstants}</div>
         <div
           style={{
             display: 'grid',
@@ -538,31 +559,31 @@ export function PricingEditor() {
             gap: 16,
           }}
         >
-          <Field name="AC W per BTU (standard)">
+          <Field name={pr.fields.acWattsStandard}>
             <Num
               value={cfg.loadDefaults.acWattsPerBtu.standard}
               onChange={(n) => patch((c) => void (c.loadDefaults.acWattsPerBtu.standard = n ?? 0))}
             />
           </Field>
-          <Field name="AC W per BTU (inverter)">
+          <Field name={pr.fields.acWattsInverter}>
             <Num
               value={cfg.loadDefaults.acWattsPerBtu.inverter}
               onChange={(n) => patch((c) => void (c.loadDefaults.acWattsPerBtu.inverter = n ?? 0))}
             />
           </Field>
-          <Field name="Assumed AC BTU (unknown)">
+          <Field name={pr.fields.assumedAcBtu}>
             <Num
               value={cfg.loadDefaults.assumedAcBtu}
               onChange={(n) => patch((c) => void (c.loadDefaults.assumedAcBtu = n ?? 0))}
             />
           </Field>
-          <Field name="Lighting hours/day">
+          <Field name={pr.fields.lightingHours}>
             <Num
               value={cfg.loadDefaults.lightingHours}
               onChange={(n) => patch((c) => void (c.loadDefaults.lightingHours = n ?? 0))}
             />
           </Field>
-          <Field name="Fridge W / duty">
+          <Field name={pr.fields.fridgeWDuty}>
             <span style={{ display: 'inline-flex', gap: 6 }}>
               <Num
                 value={cfg.loadDefaults.fridge.watts}
@@ -576,7 +597,7 @@ export function PricingEditor() {
               />
             </span>
           </Field>
-          <Field name="Freezer W / duty">
+          <Field name={pr.fields.freezerWDuty}>
             <span style={{ display: 'inline-flex', gap: 6 }}>
               <Num
                 value={cfg.loadDefaults.freezer.watts}
@@ -590,37 +611,37 @@ export function PricingEditor() {
               />
             </span>
           </Field>
-          <Field name="Peak sun hours">
+          <Field name={pr.fields.peakSunHours}>
             <Num
               value={cfg.sizing.peakSunHours}
               onChange={(n) => patch((c) => void (c.sizing.peakSunHours = n ?? 0))}
             />
           </Field>
-          <Field name="System efficiency (0–1)">
+          <Field name={pr.fields.systemEfficiency}>
             <Num
               value={cfg.sizing.systemEfficiency}
               onChange={(n) => patch((c) => void (c.sizing.systemEfficiency = n ?? 0))}
             />
           </Field>
-          <Field name="Inverter safety factor">
+          <Field name={pr.fields.inverterSafetyFactor}>
             <Num
               value={cfg.sizing.inverterSafetyFactor}
               onChange={(n) => patch((c) => void (c.sizing.inverterSafetyFactor = n ?? 0))}
             />
           </Field>
-          <Field name="Diversity factor (0–1)">
+          <Field name={pr.fields.diversityFactor}>
             <Num
               value={cfg.sizing.diversityFactor}
               onChange={(n) => patch((c) => void (c.sizing.diversityFactor = n ?? 0))}
             />
           </Field>
-          <Field name="Liquid battery V">
+          <Field name={pr.fields.liquidBatteryV}>
             <Num
               value={cfg.sizing.liquidBatteryVoltageV}
               onChange={(n) => patch((c) => void (c.sizing.liquidBatteryVoltageV = n ?? 0))}
             />
           </Field>
-          <Field name="DoD liquid / lithium (0–1)">
+          <Field name={pr.fields.dod}>
             <span style={{ display: 'inline-flex', gap: 6 }}>
               <Num
                 value={cfg.sizing.dodByChemistry.liquid}
@@ -634,7 +655,7 @@ export function PricingEditor() {
               />
             </span>
           </Field>
-          <Field name="Add-on: battery box (LYD)">
+          <Field name={pr.fields.addOnBatteryBox}>
             <Num
               value={cfg.addOns[0]?.priceLyd ?? null}
               onChange={(n) =>
@@ -649,18 +670,18 @@ export function PricingEditor() {
 
       {/* History */}
       <div style={cardStyle}>
-        <div style={sectionTitle}>Version history</div>
+        <div style={sectionTitle}>{pr.versionHistory}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {history.map((row) => (
             <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, width: 210 }}>
-                {row.version}
+                <Ltr>{row.version}</Ltr>
               </span>
               <span style={{ fontSize: 12.5, color: C.muted, flex: 1 }}>
-                {new Date(row.created_at).toLocaleString('en-GB', { hour12: false })}
+                <Ltr>{fmtDateTime(row.created_at, lang)}</Ltr>
               </span>
               {row.is_active ? (
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>ACTIVE</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>{t.common.active}</span>
               ) : (
                 <button
                   onClick={() => void activateExisting(row.id, row.version)}
@@ -677,7 +698,7 @@ export function PricingEditor() {
                     cursor: 'pointer',
                   }}
                 >
-                  Activate
+                  {t.common.activate}
                 </button>
               )}
             </div>
@@ -726,10 +747,10 @@ export function PricingEditor() {
           }}
         >
           {errors.length > 0
-            ? `${errors.length} problem${errors.length === 1 ? '' : 's'} — see top of page`
+            ? plural(errors.length, pr.problemsSeeTop, lang)
             : dirty
-              ? 'Unsaved changes'
-              : 'No changes'}
+              ? pr.unsaved
+              : pr.noChanges}
         </div>
         <button
           className="admin-focusable"
@@ -749,7 +770,15 @@ export function PricingEditor() {
             opacity: busy || !dirty ? 0.55 : 1,
           }}
         >
-          {busy ? 'Saving…' : isMobile ? 'Save & activate' : 'Save & activate as ' + nextVersion()}
+          {busy ? (
+            pr.saving
+          ) : isMobile ? (
+            pr.saveActivate
+          ) : (
+            <>
+              {pr.saveActivateAs} <Ltr>{nextVersion()}</Ltr>
+            </>
+          )}
         </button>
       </div>
     </div>
