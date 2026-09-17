@@ -3,6 +3,7 @@ import { C, cardStyle } from '../theme'
 import { Auto, ComponentSelect, Field, Ltr, Num, label, numStyle, sectionTitle, thText } from './controls'
 import type { PricingConfig } from '../pricing/types'
 import { validatePricingConfig } from '../pricing/validate'
+import { labelForError } from './configLabels'
 import { fmtDateTime, plural } from './format'
 import { lookup, useAdminLang } from './i18n'
 import { supabase } from './supabaseClient'
@@ -145,13 +146,22 @@ export function PricingEditor() {
           <div style={{ fontSize: 14, fontWeight: 700, color: C.red, marginBottom: 6 }}>
             {pr.cannotSave}
           </div>
-          {/* Validator text comes from the pricing module in English. Each line
-              is its own paragraph so it aligns as itself, not as Arabic prose. */}
-          {errors.map((e) => (
-            <div key={e} dir="auto" style={{ fontSize: 13, color: C.body, lineHeight: 1.5, textAlign: 'start' }}>
-              · {e}
-            </div>
-          ))}
+          {/* The validator speaks in paths; the manager reads
+              "Packages · L package · price (LYD) — must be a number above 0". */}
+          {errors.map((e) => {
+            const le = labelForError(e, t, opt)
+            return (
+              <div key={e} style={{ fontSize: 13, color: C.body, lineHeight: 1.5, textAlign: 'start' }}>
+                · <Auto>{le.label}</Auto>
+                {le.reason && (
+                  <>
+                    {' — '}
+                    <span dir={le.known ? undefined : 'ltr'}>{le.reason}</span>
+                  </>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
       {notice && (
