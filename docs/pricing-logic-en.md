@@ -50,7 +50,17 @@ These prices are read as they are and never recalculated.
 
 The tool determines the number of panels, batteries and inverter units from the customer's need,
 prices each item from the component list, then rounds the total up to the nearest 500 LYD, with
-a minimum of 55,500 LYD.
+a minimum of 55,500 LYD. There is no upper limit: every submission ends with a price, and no one
+at Al Qema has to check or confirm it first.
+
+**8. Large systems use Al Qema's commercial method**
+
+When the required inverter is above 20 kW, the tool switches from stacking household inverters
+to your own method for large installations — battery bank from the night-time energy, array to
+carry the daytime load and recharge the bank, inverter from the standard 30–300 kW sizes —
+and prices the result from the same component list. This switch happens by itself as soon as
+the 615 W panel and the commercial inverter sizes have prices in the list; until then, large
+systems are still priced automatically from the household components.
 
 ---
 

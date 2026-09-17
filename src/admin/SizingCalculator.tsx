@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { C, cardStyle } from '../theme'
-import { priceCommercialBom, sizeCommercial } from '../pricing/commercial'
+import {
+  commercialReady,
+  priceCommercialBom,
+  sizeCommercial,
+  unpricedCommercialComponents,
+} from '../pricing/commercial'
 import { PRICING_CONFIG } from '../pricing/config'
 import type { CommercialConfig, CommercialSizing, PricingConfig } from '../pricing/types'
 import { Auto, Field, Ltr, Money, Num, TdNum, label, sectionTitle, tdNum, tdText, thNum, thText } from './controls'
@@ -411,6 +416,42 @@ export function SizingCalculator() {
             )}
           </>
         )}
+
+        {/*
+          Whether the CUSTOMER path is using this method yet. Readiness is
+          decided by prices alone, so this is the one place that says exactly
+          what is missing — the person holding the rate card reads it here.
+        */}
+        <div
+          style={{
+            ...cardStyle,
+            padding: 14,
+            background: commercialReady(cfg) ? C.greenTint : C.canvas,
+            border: `1px solid ${commercialReady(cfg) ? C.green + '55' : C.border}`,
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: C.body,
+          }}
+        >
+          {commercialReady(cfg) ? (
+            <>
+              <strong style={{ color: C.green }}>{z.customerLive}</strong>{' '}
+              <Ltr>{commercial.customerPath.takesOverAboveKw} kW</Ltr> {z.customerLiveTail}
+            </>
+          ) : (
+            <>
+              {z.customerWaiting} <Ltr>{commercial.customerPath.takesOverAboveKw} kW</Ltr>{' '}
+              {z.customerWaitingTail}{' '}
+              {unpricedCommercialComponents(cfg).map((n, i) => (
+                <span key={n}>
+                  {i > 0 && (lang === 'ar' ? '، ' : ', ')}
+                  <Auto style={{ fontWeight: 600 }}>{n}</Auto>
+                </span>
+              ))}
+              . {z.customerMeanwhile}
+            </>
+          )}
+        </div>
 
         <div style={{ ...label, lineHeight: 1.6 }}>
           {z.method}: <Ltr>{commercial.batteryEfficiency}</Ltr> {z.methodParts.batteryEff} ·{' '}

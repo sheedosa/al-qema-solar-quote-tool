@@ -116,13 +116,6 @@ export const PRICING_CONFIG: PricingConfig = {
     roundUpToLyd: 500,
     /** The custom price never displays below this floor (admin-editable). */
     minimumLyd: 55500,
-    /**
-     * Above this we stop quoting and ask for a site survey. Without a cap the
-     * form's own maximum inputs produce a ~1,870,000 LYD quote for a 298 kWp
-     * array — a number no customer should ever be shown unseen.
-     * Awaiting client confirmation (docs/PRICING-INPUTS.md B6).
-     */
-    maximumLyd: 250000,
   },
 
   /**
@@ -190,6 +183,13 @@ export const PRICING_CONFIG: PricingConfig = {
      * ratio the build is flagged for an engineer rather than quietly issued.
      */
     maxDcAcRatio: 1.3,
+    /**
+     * Customers with more than this much inverter demand are sized by this
+     * method rather than by stacking household inverters — once its
+     * components are priced. Pending client confirmation
+     * (docs/PRICING-INPUTS.md D7).
+     */
+    customerPath: { takesOverAboveKw: 20 },
   },
 
   /** Retail unit prices — custom/BOM path and invoice reconciliation only. */

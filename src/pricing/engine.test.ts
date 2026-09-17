@@ -13,10 +13,12 @@ import {
 } from '../logic'
 import type { AcUnit, FormData } from '../types'
 import { PRICING_CONFIG } from './config'
-import { bomTotal, priceCustomBom, runEngine, toWaQuote } from './engine'
+import { unpricedCommercialComponents } from './commercial'
+import { bomTotal, computeDemand, priceCustomBom, runEngine, toWaQuote } from './engine'
 import { buildQuoteRecord, FIELD_LIMITS } from './persist'
 import { validatePricingConfig } from './validate'
-import type { Demand, PricingConfig } from './types'
+import type { Demand, NormalizedLoad, PricingConfig } from './types'
+import { BUNDLES } from '../i18n'
 
 /** Base fixture: fresh form + known LED lighting (fridge on, freezer off). */
 const base = (): FormData => {
@@ -243,6 +245,7 @@ describe('9. Custom BOM composition', () => {
   const demand = (over: Partial<Demand>): Demand => ({
     dailyKwh: 0,
     nightKwh: 0,
+    dayKw: 0,
     peakW: 0,
     inverterKw: 0,
     requiredKwp: 0,
@@ -453,32 +456,169 @@ describe('15. A zero-hour AC costs the customer nothing', () => {
   })
 })
 
-describe('16. Systems too large to price are routed to a survey', () => {
-  it('the form maximum returns SURVEY with no price at all', () => {
-    const d: FormData = {
-      ...base(),
-      acUnits: Array.from({ length: 10 }, () => ac({ capValue: '32000', hours: 24 })),
-      lighting: { type: 'regular', count: 200, watts: '' },
-    }
-    const r = runEngine(d, PRICING_CONFIG)
-    expect(r.recommendedTier).toBe('SURVEY')
-    expect(r.priceFrom).toBeNull()
-    expect(r.specs).toBeNull()
-    expect(r.confidence).toBe('low')
-    // The WhatsApp handoff must not invent a figure either.
-    expect(toWaQuote(r).priceFrom).toBeNull()
+describe('16. No finite input is ever too large to price', () => {
+  // The old behaviour: above 250,000 LYD the customer got "we'll survey your
+  // site" and no number. The business does not want a person in the loop, so
+  // size is never a reason to withhold a price. Only corrupt input is (13).
+  const extremes: [string, FormData][] = [
+    [
+      'ten 32,000 BTU ACs around the clock and 200 regular bulbs',
+      {
+        ...base(),
+        acUnits: Array.from({ length: 10 }, () => ac({ capValue: '32000', hours: 24 })),
+        lighting: { type: 'regular', count: 200, watts: '' },
+      },
+    ],
+    [
+      'every appliance preset at the maximum quantity',
+      {
+        ...base(),
+        appliances: PRESET_NAMES.map((name, i) => ({ ...makeAppliance(i + 1, name), qty: 20 })),
+      },
+    ],
+  ]
+  for (const [label, d] of extremes) {
+    it('prices ' + label, () => {
+      const r = runEngine(d, PRICING_CONFIG)
+      expect(r.recommendedTier).toBe('CUSTOM')
+      expect(r.priceFrom).not.toBeNull()
+      expect(Number.isFinite(r.priceFrom)).toBe(true)
+      expect(r.priceFrom!).toBeGreaterThan(PRICING_CONFIG.packages[4].priceLyd)
+      expect(r.specs).not.toBeNull()
+      expect(toWaQuote(r).priceFrom).toBe(r.priceFrom)
+    })
+  }
+})
+
+describe('26. Large systems hand over to the commercial method by themselves', () => {
+  const huge: FormData = {
+    ...base(),
+    acUnits: Array.from({ length: 10 }, () => ac({ capValue: '32000', hours: 24 })),
+    lighting: { type: 'regular', count: 200, watts: '' },
+  }
+  /** The bundled config with every commercial component given a price. */
+  const priced = (patch?: (c: PricingConfig) => void) =>
+    cfgWith((c) => {
+      for (const n of unpricedCommercialComponents(c)) c.components[n] = 1000
+      patch?.(c)
+    })
+
+  it('with the bundled config the commercial parts are unpriced, so the household BOM prices it', () => {
+    const r = runEngine(huge, PRICING_CONFIG)
+    expect(r.sizingMethod).toBe('residentialBom')
+    expect(r.specs!.panels.watts).toBe(PRICING_CONFIG.customBom.panel.watts) // 590
+    expect(r.commercialFlags).toEqual([])
   })
 
-  it('a system just under the cap still gets a real price', () => {
-    const cfg = cfgWith((c) => (c.customBom.maximumLyd = 10_000_000))
-    const d: FormData = {
-      ...base(),
-      acUnits: [ac({ capValue: '18000', hours: 10 }), ac({ capValue: '18000', hours: 10 })],
-    }
-    const r = runEngine(d, cfg)
-    expect(r.recommendedTier).not.toBe('SURVEY')
-    expect(r.priceFrom).toBeGreaterThan(0)
+  it('the moment those prices exist, the same submission is sized by the commercial method', () => {
+    const r = runEngine(huge, priced())
+    expect(r.sizingMethod).toBe('commercial')
+    expect(r.recommendedTier).toBe('CUSTOM')
+    expect(r.isCustom).toBe(true)
+    // Its hardware, not the household BOM's.
+    expect(r.specs!.panels.watts).toBe(PRICING_CONFIG.commercial!.panel.watts) // 615
+    const rungs = PRICING_CONFIG.commercial!.inverterLadder.map((x) => x.kw)
+    expect(rungs).toContain(r.specs!.inverter.kw)
+    // Battery bank: ceil(nightKwh / 0.8 / 5) units of 5 kWh.
+    const units = Math.ceil(r.nightKwh / 0.8 / 5)
+    expect(r.specs!.battery.nominalKwh).toBe(units * 5)
+    expect(r.priceFrom!).toBeGreaterThan(0)
+    expect(r.customBuild!.lines.every((l) => l.unitLyd > 0)).toBe(true)
   })
+
+  it('a small custom system stays on the household BOM even when the commercial parts are priced', () => {
+    const three: FormData = {
+      ...base(),
+      acUnits: [ac({ capValue: '9000', hours: 1 }), ac({ capValue: '9000', hours: 1 }), ac({ capValue: '9000', hours: 1 })],
+    }
+    const r = runEngine(three, priced())
+    expect(r.recommendedTier).toBe('CUSTOM')
+    expect(r.sizingMethod).toBe('residentialBom')
+    expect(r.priceFrom).toBe(55500) // the floor still does its job
+  })
+
+  it('the hand-over point is a config value', () => {
+    const r = runEngine(huge, priced((c) => (c.commercial!.customerPath.takesOverAboveKw = 300)))
+    expect(r.sizingMethod).toBe('residentialBom')
+  })
+
+  it('the engineering flags travel with the lead, not to the customer', () => {
+    const r = runEngine(huge, priced())
+    // Example 1 of the client's method already trips this; a 10-AC site does too.
+    expect(r.commercialFlags).toContain('dcAcRatioHigh')
+    // Customer-facing warnings are unchanged by the commercial arm.
+    expect(r.warnings).not.toContain('customFloorApplied')
+  })
+
+  it('packages are untouched by any of this', () => {
+    const r = runEngine(base(), priced())
+    expect(r.sizingMethod).toBe('packages')
+    expect(r.commercialFlags).toEqual([])
+  })
+})
+
+describe('27. Daytime power is the daytime energy spread over daylight', () => {
+  const load = (over: Partial<NormalizedLoad>): NormalizedLoad => ({
+    id: 'x',
+    label: 'x',
+    category: 'appliance',
+    watts: 1000,
+    peakWatts: 1000,
+    qty: 1,
+    hoursPerDay: 0,
+    runAtNight: false,
+    alwaysOn: false,
+    heavyDuty: false,
+    assumed: false,
+    ...over,
+  })
+
+  it('a 24 h always-on 1 kW load is 1 kW of daytime power', () => {
+    // 24 kWh a day, 12 of them at night → 12 kWh over 12 daylight hours.
+    const d = computeDemand([load({ hoursPerDay: 24, alwaysOn: true })], PRICING_CONFIG)
+    expect(d.dayKw).toBeCloseTo(1, 6)
+  })
+
+  it('a night-only load contributes nothing to daytime power', () => {
+    const d = computeDemand([load({ hoursPerDay: 6, runAtNight: true })], PRICING_CONFIG)
+    expect(d.dayKw).toBe(0)
+  })
+
+  it('a daytime-only load contributes all of its energy', () => {
+    const d = computeDemand([load({ hoursPerDay: 6 })], PRICING_CONFIG)
+    expect(d.dayKw).toBeCloseTo(0.5, 6) // 6 kWh over 12 h
+  })
+})
+
+describe('28. The customer is never told to wait for a review', () => {
+  // The whole flow is automated: the number on the screen IS the quote, with
+  // the standard "may change after a site assessment" disclaimer and nothing
+  // about an engineer confirming it first.
+  // Any sentence that puts a person between the customer and the quote.
+  const removed = [
+    'our engineer', 'engineer will', 'arrange a site survey', 'We review', 'We confirm',
+    'مهندسنا', 'مهندسكم', 'معاينة للموقع', 'نراجع', 'نؤكد',
+  ]
+  const flatten = (o: unknown): string[] =>
+    typeof o === 'string' ? [o] : o && typeof o === 'object' ? Object.values(o).flatMap(flatten) : []
+  for (const lang of ['en', 'ar'] as const) {
+    it(lang + ': the result copy and WhatsApp message carry no confirmation promise', () => {
+      const r = BUNDLES[lang].result
+      const texts = [
+        r.customBody, r.customPriceNote, r.priceNote, r.surveyBody, r.surveyCta,
+        r.subtitle, r.termsNote, r.assumedBody, r.step1, r.step2, r.step3,
+        ...Object.values(r.warnings),
+      ]
+      const wa = BUNDLES[lang].whatsappMsg('Test', {
+        city: 'Tripoli', propertyType: 'Home', acCount: 3, notes: '',
+        tier: 'CUSTOM', priceFrom: 90000, dailyKwh: 40, isCustom: true, configVersion: 'v',
+      })
+      for (const t of [...texts, wa]) {
+        for (const phrase of removed) expect(t, phrase).not.toContain(phrase)
+      }
+      void flatten
+    })
+  }
 })
 
 describe('17. Runtime hours are derived, not asserted', () => {
@@ -590,7 +730,7 @@ describe('22. Validator plausibility bounds', () => {
     ['a safety factor below 1', (c) => (c.sizing.inverterSafetyFactor = 0.5)],
     ['night hours beyond a day', (c) => (c.sizing.alwaysOnNightHours = 48)],
     ['a custom floor below the XXL price', (c) => (c.customBom.minimumLyd = 1000)],
-    ['a custom cap below the floor', (c) => (c.customBom.maximumLyd = 100)],
+    ['a commercial hand-over below 5 kW', (c) => (c.commercial!.customerPath.takesOverAboveKw = 1)],
     ['a renamed appliance preset', (c) => {
       const a = c.loadDefaults.appliancesByName as Record<string, unknown>
       a['Telly'] = a['TV']

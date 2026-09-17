@@ -29,7 +29,9 @@ import type {
   CommercialFlag,
   CommercialInput,
   CommercialSizing,
+  CustomBuild,
   PricingConfig,
+  SystemSpecs,
 } from './types'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -163,4 +165,89 @@ export function priceCommercialBom(
   const totalLyd = Math.ceil(subtotalLyd / commercial.roundUpToLyd) * commercial.roundUpToLyd
 
   return { lines, subtotalLyd, totalLyd, unpricedComponents: unpriced }
+}
+
+/* ------------------------------------------------------------ customer path */
+
+/** Every component name the commercial BOM can reference, deduplicated. */
+export function commercialComponents(cm: CommercialConfig): string[] {
+  const names = [
+    cm.panel.component,
+    cm.battery.component,
+    cm.stand.component,
+    ...cm.inverterLadder.map((r) => r.component),
+    ...cm.perPanel.map((l) => l.component),
+    ...cm.perInverter.map((l) => l.component),
+    ...cm.fixed.map((l) => l.component),
+  ]
+  return names.filter((n, i) => names.indexOf(n) === i)
+}
+
+/** The commercial components with no price in the rate card, in BOM order. */
+export function unpricedCommercialComponents(cfg: PricingConfig): string[] {
+  if (!cfg.commercial) return []
+  return commercialComponents(cfg.commercial).filter((n) => cfg.components[n] === undefined)
+}
+
+/**
+ * Whether the CUSTOMER path may hand large systems to this method: the block
+ * exists and every component it references carries a price. This is the whole
+ * switch — no flag to flip. The day the admin enters the last missing price,
+ * the next large submission is sized and priced by Al Qema's own method;
+ * until then the household BOM prices it, and the customer still gets a
+ * number.
+ */
+export function commercialReady(cfg: PricingConfig): boolean {
+  return cfg.commercial !== undefined && unpricedCommercialComponents(cfg).length === 0
+}
+
+/**
+ * Express a commercial build in the engine's own shapes so the result screen,
+ * the lead record and the admin detail need no second code path.
+ *
+ * Only valid when `commercialReady` — every line is priced, so the nullable
+ * `unitLyd` collapses to a number. Asserted rather than defaulted: a zero
+ * here would silently understate a quote.
+ */
+export function commercialToEngine(
+  sizing: CommercialSizing,
+  build: CommercialBuild,
+  cfg: PricingConfig,
+  cm: CommercialConfig,
+): { specs: SystemSpecs; build: CustomBuild } {
+  const lines = build.lines.map((l) => {
+    if (l.unitLyd === null || l.totalLyd === null) {
+      throw new Error('Commercial component has no price: ' + l.name)
+    }
+    return { name: l.name, qty: l.qty, unitLyd: l.unitLyd, totalLyd: l.totalLyd }
+  })
+  const nominalKwh = sizing.batteries * cm.battery.kwhEach
+  return {
+    specs: {
+      inverter: {
+        kw: sizing.inverterKw,
+        kva: round2(sizing.inverterKw / cfg.sizing.kvaToKw),
+      },
+      panels: {
+        count: sizing.panels,
+        watts: cm.panel.watts,
+        kwp: round2((sizing.panels * cm.panel.watts) / 1000),
+      },
+      battery: {
+        chemistry: 'lithium',
+        nominalKwh: round2(nominalKwh),
+        // The method's own usable fraction, not the household DoD.
+        usableKwh: round2(nominalKwh * cm.batteryEfficiency),
+        lifespanYears: cfg.batteryLifespanYears.lithium,
+      },
+    },
+    build: {
+      lines,
+      subtotalLyd: build.subtotalLyd,
+      totalLyd: build.totalLyd,
+      // The commercial path has no floor: the smallest system it can produce
+      // is far above the household one.
+      floorApplied: false,
+    },
+  }
 }

@@ -269,10 +269,6 @@ export function validatePricingConfig(x: unknown): ValidationResult {
     }
     if (!finitePos(cb.roundUpToLyd)) bad('customBom.roundUpToLyd', 'must be positive')
     if (!finitePos(cb.minimumLyd)) bad('customBom.minimumLyd', 'must be positive')
-    if (!finitePos(cb.maximumLyd)) bad('customBom.maximumLyd', 'must be positive')
-    else if (finitePos(cb.minimumLyd) && cb.maximumLyd <= cb.minimumLyd) {
-      bad('customBom.maximumLyd', 'must be greater than the minimum')
-    }
     // The floor must not undercut the largest package, or a strictly bigger
     // requirement could be quoted below XXL. Today that holds only because the
     // two numbers were hand-matched; here it becomes a rule.
@@ -352,6 +348,15 @@ export function validatePricingConfig(x: unknown): ValidationResult {
       if (!finitePos(cm.roundUpToLyd)) bad('commercial.roundUpToLyd', 'must be positive')
       if (!finitePos(cm.maxDcAcRatio) || cm.maxDcAcRatio < 1) {
         bad('commercial.maxDcAcRatio', 'must be at least 1')
+      }
+      const cp = cm.customerPath
+      if (
+        !isRecord(cp) ||
+        !finitePos(cp.takesOverAboveKw) ||
+        cp.takesOverAboveKw < 5 ||
+        cp.takesOverAboveKw > 300
+      ) {
+        bad('commercial.customerPath.takesOverAboveKw', 'must be between 5 and 300 kW')
       }
     }
   }

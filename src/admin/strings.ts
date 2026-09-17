@@ -18,7 +18,7 @@
  */
 import type { Lang } from '../i18n'
 import type { CommercialFlag } from '../pricing/types'
-import type { AssumptionId, ConstraintId, EngineResult, WarningId } from '../pricing/types'
+import type { AssumptionId, ConstraintId, EngineResult, SizingMethod, WarningId } from '../pricing/types'
 import type { PluralForms } from './format'
 
 export type TabId = 'submissions' | 'pricing' | 'sizing'
@@ -106,9 +106,16 @@ const EN = {
     usable: 'usable',
     yearsShort: 'yr',
     chemistry: { liquid: 'liquid', lithium: 'lithium' } satisfies Record<'liquid' | 'lithium', string>,
-    surveyTitle: 'Site survey required',
+    surveyTitle: 'Could not be calculated',
     surveyBody:
-      'No system was sized and no price was quoted — this one is too large to price from the form.',
+      'No system was sized and no price was quoted — the answers produced figures that could not be calculated. Size is never the reason; check the form values.',
+    sizingMethod: 'Sizing method',
+    method: {
+      packages: 'Standard package',
+      residentialBom: 'Custom build — household components',
+      commercial: 'Commercial method',
+    } satisfies Record<SizingMethod, string>,
+    engineeringNotes: 'Engineering notes',
     lowConfidenceTitle: 'Low confidence — check before quoting',
     notesTitle: 'Notes',
     assumed: 'Assumed',
@@ -277,6 +284,7 @@ const EN = {
       liquidBatteryV: 'Liquid battery V',
       dod: 'DoD liquid / lithium (0–1)',
       addOnBatteryBox: 'Add-on: battery box (LYD)',
+      takesOverAboveKw: 'Commercial method above (kW)',
     },
     versionHistory: 'Version history',
     unsaved: 'Unsaved changes',
@@ -328,6 +336,11 @@ const EN = {
     builtInFigures:
       'These are the built-in figures — publish the pricing config once to make them editable.',
     builtInPrices: 'Component prices are the built-in list.',
+    customerLive: 'Customer quotes: systems above',
+    customerLiveTail: 'of inverter demand are priced by this method automatically.',
+    customerWaiting: 'Customer quotes will switch to this method for systems above',
+    customerWaitingTail: 'as soon as these are priced in the component list:',
+    customerMeanwhile: 'Until then large systems are priced from the household component list — still automatically, still with a number.',
     summary: {
       title: 'Indicative sizing — not a customer quote',
       batteries: 'Batteries',
@@ -425,8 +438,16 @@ export const AR: AdminStrings = {
     usable: 'قابل للاستخدام',
     yearsShort: 'سنة',
     chemistry: { liquid: 'سائلة', lithium: 'ليثيوم' },
-    surveyTitle: 'يلزم معاينة الموقع',
-    surveyBody: 'لم يُحدَّد نظام ولم يُعرض سعر — هذا الطلب أكبر من أن يُسعَّر من النموذج.',
+    surveyTitle: 'لم يمكن حسابه',
+    surveyBody:
+      'لم يُحدَّد نظام ولم يُعرض سعر — أنتجت الإجابات أرقامًا لا يمكن حسابها. الحجم ليس السبب أبدًا؛ راجع قيم النموذج.',
+    sizingMethod: 'طريقة التحجيم',
+    method: {
+      packages: 'باقة قياسية',
+      residentialBom: 'تركيبة مخصّصة — مكوّنات منزلية',
+      commercial: 'الطريقة التجارية',
+    },
+    engineeringNotes: 'ملاحظات هندسية',
     lowConfidenceTitle: 'ثقة منخفضة — راجع قبل التسعير',
     notesTitle: 'ملاحظات',
     assumed: 'مُفترَض',
@@ -604,6 +625,7 @@ export const AR: AdminStrings = {
       liquidBatteryV: 'جهد البطارية السائلة (V)',
       dod: 'عمق التفريغ سائلة / ليثيوم (0–1)',
       addOnBatteryBox: 'إضافة: صندوق البطاريات (د.ل)',
+      takesOverAboveKw: 'الطريقة التجارية فوق (kW)',
     },
     versionHistory: 'سجل الإصدارات',
     unsaved: 'تغييرات غير محفوظة',
@@ -657,6 +679,11 @@ export const AR: AdminStrings = {
     },
     builtInFigures: 'هذه هي الأرقام المضمّنة — انشر إعدادات الأسعار مرة واحدة لتصبح قابلة للتعديل.',
     builtInPrices: 'أسعار المكوّنات من القائمة المضمّنة.',
+    customerLive: 'عروض العملاء: الأنظمة التي يتجاوز طلب الإنفرتر فيها',
+    customerLiveTail: 'تُسعَّر بهذه الطريقة تلقائيًا.',
+    customerWaiting: 'ستتحول عروض العملاء إلى هذه الطريقة للأنظمة فوق',
+    customerWaitingTail: 'فور تسعير هذه المكوّنات في قائمة الأسعار:',
+    customerMeanwhile: 'حتى ذلك الحين تُسعَّر الأنظمة الكبيرة من قائمة المكوّنات المنزلية — تلقائيًا أيضًا، وبرقم دائمًا.',
     summary: {
       title: 'تحجيم تقريبي — ليس عرض سعر للعميل',
       batteries: 'البطاريات',

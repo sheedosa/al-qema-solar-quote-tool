@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { priceCommercialBom, sizeCommercial } from './commercial'
+import {
+  commercialReady,
+  priceCommercialBom,
+  sizeCommercial,
+  unpricedCommercialComponents,
+} from './commercial'
 import { PRICING_CONFIG } from './config'
 import { validatePricingConfig } from './validate'
 import type { CommercialConfig, CommercialSizing, PricingConfig } from './types'
@@ -211,12 +216,12 @@ describe('6. Pricing the build', () => {
     expect(b.totalLyd).toBeGreaterThanOrEqual(b.subtotalLyd)
   })
 
-  it('lands far above the household survey cap, which is why it stays internal', () => {
+  it('prices at a scale several times the largest household package', () => {
     const s = size(180, 30)
     const b = priceCommercialBom(s, PRICING_CONFIG, CM)
-    // Batteries alone exceed the 250,000 LYD cap above which the customer
-    // path refuses to show a price at all.
-    expect(b.subtotalLyd).toBeGreaterThan(PRICING_CONFIG.customBom.maximumLyd)
+    // Batteries alone are 337,500 LYD against an XXL package of 55,500 — the
+    // reason this arm exists rather than stacking household inverters.
+    expect(b.subtotalLyd).toBeGreaterThan(6 * PRICING_CONFIG.packages[4].priceLyd)
   })
 })
 
@@ -275,5 +280,38 @@ describe('8. The household path is untouched', () => {
     expect(CM.systemEfficiency).not.toBe(PRICING_CONFIG.sizing.systemEfficiency)
     expect(CM.peakSunHours).not.toBe(PRICING_CONFIG.sizing.peakSunHours)
     expect(CM.panel.watts).not.toBe(PRICING_CONFIG.customBom.panel.watts)
+  })
+})
+
+describe('9. Readiness is the whole switch for the customer path', () => {
+  const priced = (): PricingConfig => {
+    const c = JSON.parse(JSON.stringify(PRICING_CONFIG)) as PricingConfig
+    for (const n of unpricedCommercialComponents(c)) c.components[n] = 1000
+    return c
+  }
+
+  it('the bundled config is not ready: the panel and every inverter rung are unpriced', () => {
+    const missing = unpricedCommercialComponents(PRICING_CONFIG)
+    expect(missing).toContain('Jinko 615W')
+    expect(missing).toContain('Commercial inverter 30kW')
+    expect(missing).toContain('Commercial inverter 300kW')
+    expect(commercialReady(PRICING_CONFIG)).toBe(false)
+  })
+
+  it('flips on exactly when the last missing price is entered', () => {
+    const c = priced()
+    expect(commercialReady(c)).toBe(true)
+    const [first] = unpricedCommercialComponents(PRICING_CONFIG)
+    delete c.components[first]
+    expect(commercialReady(c)).toBe(false)
+    expect(unpricedCommercialComponents(c)).toEqual([first])
+  })
+
+  it('a config without the block is never ready', () => {
+    const { commercial: _omitted, ...rest } = JSON.parse(
+      JSON.stringify(PRICING_CONFIG),
+    ) as PricingConfig
+    expect(commercialReady(rest as PricingConfig)).toBe(false)
+    expect(unpricedCommercialComponents(rest as PricingConfig)).toEqual([])
   })
 })

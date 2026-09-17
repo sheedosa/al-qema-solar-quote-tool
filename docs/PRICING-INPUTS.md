@@ -213,18 +213,16 @@ roughly five times the hardware.
 - If a custom build honestly costs less than XXL, would you rather just sell them XXL?
 - Config key: `customBom.minimumLyd` · Current placeholder: **55,500**
 
-### B6. Above what size should we stop quoting and book a survey?
+### B6. ~~Above what size should we stop quoting and book a survey?~~ — withdrawn
 
-**Now implemented, but the number is ours, not yours.** There used to be no upper limit at
-all: filling in the form at maximum produced a quote of **1,872,000 LYD** for 298 kWp of
-panels, shown to the customer as an ordinary price. A ceiling now exists — above it the tool
-shows no price and offers a site survey instead — and we have set it provisionally at
-**250,000 LYD**.
+**There is no ceiling, by design.** The tool is meant to give every customer a price with no
+one at Al Qema checking it first, so a "book a survey" result has been removed. Instead,
+systems above roughly 20 kW of inverter demand are sized and priced by your own commercial
+method (Tier D below) the moment its components are priced; until then they are priced from
+the household component list. Either way the customer sees a number.
 
-- Is 250,000 LYD the right ceiling? Above it the customer sees "we'll survey your site" and
-  no number at all, so setting it too low costs you quotes and too high shows numbers nobody
-  has checked.
-- Config key: `customBom.maximumLyd` · Current placeholder: **250,000**
+What replaces this question is **D7**: where exactly the hand-over to the commercial method
+should sit.
 
 ### B7. Should the battery box (350 LYD) be included in the price or stay an upsell?
 
@@ -348,6 +346,29 @@ The method says 615 W. The household side of the tool builds custom systems with
 Jinko, and the packages are specified at 605 W and 550 W. At least two of those four numbers
 are out of date. This is the same question as B3, now with a fourth figure in play.
 
+### D6. Daytime load: is "average power over daylight hours" the right reading?
+
+Your method takes a **daytime load in kW** — the power the panels carry in real time. The
+customer form never asks for power by time of day; it asks for appliances, hours and whether
+each runs at night. So the tool derives daytime load as **daytime energy ÷ 12 daylight hours**
+(daily kWh minus night-time kWh, spread over the day). For a site running steadily all day the
+two readings agree; for a site that runs everything in a short burst the derived figure will be
+lower than the true peak, and the inverter is sized from the peak anyway.
+
+- Is that acceptable, or should the daytime load be the peak figure instead?
+- Config key: none — this is how the calculation reads the form
+
+### D7. Where should the commercial method take over from the household build?
+
+Below a point, stacking household inverters (parallel 6 kW units) is the right build; above it,
+your commercial method with 30–300 kW inverters is. We have set the hand-over at **20 kW of
+inverter demand** — the smallest commercial size is 30 kW, so a 20–30 kW load gets a 30 kW unit
+with headroom, while a 13 kW house is not pushed onto a 30 kW machine.
+
+- Is 20 kW the right point? Anything from 12 to 30 is defensible.
+- Config key: `commercial.customerPath.takesOverAboveKw` · Current placeholder: **20** ·
+  editable in the admin panel under Sizing constants
+
 ---
 
 ## What happens when you answer
@@ -365,7 +386,7 @@ are out of date. This is the same question as B3, now with a fourth figure in pl
 | B3 panel model | Admin panel → Packages and custom BOM | No |
 | B4 night hours | Config setting | Yes — we will expose it in the panel |
 | B5 custom floor / margin | Admin panel → minimum price, plus logic change | Partly |
-| B6 maximum size | New setting and a "book a survey" result | Yes |
+| B6 maximum size | Withdrawn — every submission is priced | — |
 | B7 battery box | Config setting | Small change |
 | B8 roof space and shade | New sizing input | Yes |
 | D1 daytime offset | Change to the commercial calculation | Yes |
@@ -373,6 +394,8 @@ are out of date. This is the same question as B3, now with a fourth figure in pl
 | D3 commercial prices | Admin panel → Component price list | No |
 | D4 balance-of-system at scale | Config setting | Yes — we will expose it in the panel |
 | D5 panel model | Admin panel → Packages and custom BOM | No |
+| D6 daytime load reading | Change to the calculation, if you disagree | Yes |
+| D7 commercial hand-over point | Admin panel → Sizing constants | No |
 
 Every price change is published as a new version with a timestamp, takes effect immediately for
 new visitors, and can be rolled back from the admin panel.

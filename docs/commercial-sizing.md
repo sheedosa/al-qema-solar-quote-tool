@@ -104,8 +104,24 @@ Add either in the admin panel under **Pricing → Component price list** and the
 itself. Until then, Example 1 prices at **419,000 LYD** for the parts that *are* on the list —
 the batteries alone are 337,500 — with the panels and the inverter still open.
 
-That figure is also why this stays internal: it is well above the 250,000 LYD ceiling at which
-the customer-facing tool stops showing a price and asks for a site survey.
+## The customer path
+
+The quote tool is fully automatic: every customer who finishes the form sees a price, and no
+one at Al Qema has to confirm it. For large systems that price comes from this method.
+
+- **When it runs:** a customer whose sized inverter demand is above **20 kW** (a setting in the
+  admin panel) is routed here instead of to the household build. The battery energy is their
+  night-time load; the daytime load is their daytime energy spread over the daylight hours; the
+  peak is their peak. See D6 and D7 in the questionnaire for the two readings we chose.
+- **What it needs:** every component in this method must have a price. The two that are
+  missing today — the 615 W panel and the commercial inverters — are the only thing standing
+  between the customer path and this method. Enter them and the switch happens by itself; the
+  *Sizing* tab in the admin shows whether it is live and exactly what is still missing.
+- **Until then:** large systems are still priced automatically, from the household component
+  list, so the customer is never left without a number.
+- **What the customer sees:** the same result screen as the packages — "From ~X LYD", the
+  system's panels, batteries and inverter, and the standard "initial estimate, may change after
+  a site assessment" note. Nothing about waiting for an engineer.
 
 ## What we need from you
 

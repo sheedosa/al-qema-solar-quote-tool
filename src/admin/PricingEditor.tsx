@@ -655,6 +655,18 @@ export function PricingEditor() {
               />
             </span>
           </Field>
+          {cfg.commercial && (
+            <Field name={pr.fields.takesOverAboveKw}>
+              <Num
+                value={cfg.commercial.customerPath.takesOverAboveKw}
+                onChange={(n) =>
+                  patch((c) => {
+                    if (c.commercial) c.commercial.customerPath.takesOverAboveKw = n ?? 0
+                  })
+                }
+              />
+            </Field>
+          )}
           <Field name={pr.fields.addOnBatteryBox}>
             <Num
               value={cfg.addOns[0]?.priceLyd ?? null}

@@ -459,6 +459,18 @@ function Detail({ lead }: { lead: LeadRow }) {
         </Callout>
       )}
 
+      {/* Which arm priced it, so a large quote's provenance is on the record. */}
+      <div style={{ fontSize: 12.5, color: C.muted }}>
+        {d.sizingMethod}: {d.method[result.sizingMethod ?? 'packages']}
+      </div>
+      {(result.commercialFlags?.length ?? 0) > 0 && (
+        <Callout tone="amber" title={d.engineeringNotes}>
+          {result.commercialFlags.map((f) => (
+            <li key={f}>{t.labels.flag[f]}</li>
+          ))}
+        </Callout>
+      )}
+
       {result.constraintsBinding.length > 0 && (
         <div style={{ fontSize: 12.5, color: C.muted }}>
           {d.sizedBy}:{' '}

@@ -225,7 +225,7 @@ const EN = {
   result: {
     title: "Here's your recommended system, ",
     friend: 'friend',
-    subtitle: 'Based on what you told us — our engineer will confirm the details.',
+    subtitle: 'Based on what you told us.',
     solarPanels: 'Solar panels',
     kwpArray: 'kWp array',
     inverter: 'Inverter',
@@ -257,45 +257,45 @@ const EN = {
       ', depending on devices and usage',
     warrantyNote: '1-year warranty on all parts',
     addOnLine: (price: string) => 'Optional add-on: battery box (2 batteries) — ' + price + ' LYD',
-    termsNote: 'Final scope covers the loads agreed with our engineer.',
+    termsNote: 'Final scope covers the loads listed in your answers.',
     priceRef: 'Pricing ref',
     warningsTitle: 'Please note',
     warnings: {
       heavyDutyLoad:
-        'Heavy appliances (oven, kettle, dryer…) draw a lot of power — our engineer will review them with you.',
+        'Heavy appliances (oven, kettle, dryer…) draw a lot of power — they are included in this sizing.',
       acBtuExceeded:
-        'One of your ACs is larger than this package officially supports — our engineer will confirm the right fit.',
+        'One of your ACs is larger than this package officially supports — the next size up may suit you better.',
       customFloorApplied:
         'This is our minimum price for a custom-built system, which covers design, installation and call-out.',
       roofSpaceTight:
-        'This array may need more roof space than you described — our engineer will check the fit on site.',
+        'This array may need more roof space than you described.',
     } as Record<string, string>,
     assumedTitle: 'We assumed a few details',
     assumedBody:
-      "Where you weren't sure, we used typical values — our engineer will confirm before final pricing.",
+      'Where you weren’t sure, we used typical values.',
     assumptions: {
       acSizeAssumed: 'AC size (12,000 BTU typical)',
       lightingAssumed: 'Bulb wattage',
       customApplianceAssumed: 'Custom device power',
       usageHoursAssumed: 'Typical daily running hours per device',
     } as Record<string, string>,
-    surveyTitle: 'Let’s design this one properly, ',
+    surveyTitle: 'We couldn’t calculate this one, ',
     surveyBody:
-      'Your needs are larger than we can price accurately from a form. Rather than show you a number we might have to change, our engineer will visit, measure your roof and loads, and give you a firm quote.',
-    surveyCta: 'Arrange a site visit on WhatsApp',
+      'Something in the answers didn’t add up, so we couldn’t work out an estimate. Message us on WhatsApp with what you need and we’ll sort it out.',
+    surveyCta: 'Message us on WhatsApp',
     customTitle: 'You need a tailored system, ',
     customPackageName: 'Custom system',
     customBody:
-      'Your needs go beyond our standard packages, so we designed a custom system from our component list. Our engineer will confirm the design and final price with you on WhatsApp.',
-    customPriceNote: 'Component-level estimate — our engineer will confirm the final design and price.',
+      'Your needs go beyond our standard packages, so we designed a system for you from our component list.',
+    customPriceNote: 'Built from our component list to match your loads.',
     indicativePrice: 'Indicative price',
     priceFrom: 'From ~',
     lyd: 'LYD',
-    priceNote: 'Starting estimate — confirmed by our engineer after a quick review.',
+    priceNote: 'Starting estimate based on your answers.',
     whatNext: 'What happens next',
-    step1: 'We review your details',
-    step2: 'We confirm sizing & price on WhatsApp',
-    step3: 'We schedule installation',
+    step1: 'Send us your estimate on WhatsApp',
+    step2: 'We answer your questions and agree the details',
+    step3: 'We schedule your installation',
     whatsappCta: 'Get my detailed quote on WhatsApp',
     startOver: 'Start over',
     trust: 'Trusted by 4,000+ customers · Partners: Huawei · Sungrow · Trina',
@@ -394,9 +394,9 @@ const EN = {
         name +
         ' — my needs are larger than the standard packages (daily need ~' +
         q.dailyKwh +
-        ' kWh), so the form could not price them. Ref: ' +
+        ' kWh), but the form could not calculate an estimate. Ref: ' +
         q.configVersion +
-        '. Please arrange a site survey.' +
+        '. Please help me with a quote.' +
         waContextEn(q)
       : q.isCustom
       ? 'Hello Al Qema! I completed the solar estimate form. My name is ' +
@@ -407,7 +407,7 @@ const EN = {
         q.dailyKwh +
         ' kWh). Ref: ' +
         q.configVersion +
-        '. Please have an engineer confirm my tailored quote.' +
+        '. Please send my detailed quote.' +
         waContextEn(q)
       : 'Hello Al Qema! I completed the solar estimate form. My name is ' +
         name +
@@ -586,7 +586,7 @@ const AR: Strings = {
   result: {
     title: 'إليك النظام الموصى به، ',
     friend: 'صديقنا',
-    subtitle: 'بناءً على ما أخبرتنا به — سيؤكّد مهندسنا التفاصيل.',
+    subtitle: 'بناءً على ما أخبرتنا به.',
     solarPanels: 'الألواح الشمسية',
     kwpArray: 'kWp للمصفوفة',
     inverter: 'الإنفرتر',
@@ -615,44 +615,44 @@ const AR: Strings = {
       'مدة التشغيل الاحتياطي نحو ' + hours + ' ساعة حسب الأجهزة والاستخدام',
     warrantyNote: 'ضمان سنة على جميع القطع',
     addOnLine: (price: string) => 'إضافة اختيارية: صندوق بطاريات (بطاريتان) — ' + price + ' د.ل',
-    termsNote: 'يشمل النطاق النهائي الأحمال المتفق عليها مع مهندسنا.',
+    termsNote: 'يشمل النطاق النهائي الأحمال المذكورة في إجاباتك.',
     priceRef: 'مرجع التسعير',
     warningsTitle: 'يرجى الملاحظة',
     warnings: {
       heavyDutyLoad:
-        'الأجهزة الثقيلة (فرن، غلّاية، نشّافة…) تستهلك طاقة كبيرة — سيراجعها مهندسنا معك.',
+        'الأجهزة الثقيلة (فرن، غلّاية، نشّافة…) تستهلك طاقة كبيرة — وقد أُدرجت في هذا التحجيم.',
       acBtuExceeded:
-        'أحد مكيّفاتك أكبر مما تدعمه هذه الباقة رسمياً — سيؤكّد مهندسنا الخيار المناسب.',
+        'أحد مكيّفاتك أكبر مما تدعمه هذه الباقة رسمياً — قد تناسبك الباقة الأكبر.',
       customFloorApplied:
         'هذا هو الحد الأدنى لسعر النظام المخصّص، ويشمل التصميم والتركيب والانتقال.',
       roofSpaceTight:
-        'قد تحتاج هذه الألواح مساحة سطح أكبر مما ذكرت — سيتحقق مهندسنا من ذلك في الموقع.',
+        'قد تحتاج هذه الألواح مساحة سطح أكبر مما ذكرت.',
     },
     assumedTitle: 'افترضنا بعض التفاصيل',
-    assumedBody: 'حيث لم تكن متأكداً، استخدمنا قيماً نموذجية — سيؤكّدها مهندسنا قبل التسعير النهائي.',
+    assumedBody: 'حيث لم تكن متأكداً، استخدمنا قيماً نموذجية.',
     assumptions: {
       acSizeAssumed: 'حجم المكيّف (12,000 BTU نموذجي)',
       lightingAssumed: 'قدرة اللمبات',
       customApplianceAssumed: 'قدرة الجهاز المخصّص',
       usageHoursAssumed: 'ساعات التشغيل اليومية المعتادة لكل جهاز',
     },
-    surveyTitle: 'دعنا نصمّم لك هذا النظام كما يجب، ',
+    surveyTitle: 'لم نستطع حساب هذا التقدير، ',
     surveyBody:
-      'احتياجاتك أكبر من أن نُسعّرها بدقة عبر نموذج. وبدلاً من عرض رقم قد نضطر لتغييره، سيزورك مهندسنا ليقيس السطح والأحمال ويعطيك عرضاً نهائياً.',
-    surveyCta: 'رتّب معاينة عبر واتساب',
+      'هناك شيء في الإجابات لم يكن منطقياً، فلم نتمكن من حساب تقدير. راسلنا عبر واتساب بما تحتاجه وسنساعدك.',
+    surveyCta: 'راسلنا عبر واتساب',
     customTitle: 'تحتاج إلى نظام مخصّص، ',
     customPackageName: 'نظام مخصّص',
     customBody:
-      'احتياجاتك تتجاوز باقاتنا القياسية، لذا صمّمنا لك نظاماً مخصّصاً من قائمة مكوّناتنا. سيؤكّد مهندسنا التصميم والسعر النهائي معك عبر واتساب.',
-    customPriceNote: 'تقدير على مستوى المكوّنات — سيؤكّد مهندسنا التصميم والسعر النهائي.',
+      'احتياجاتك تتجاوز باقاتنا القياسية، لذا صمّمنا لك نظاماً من قائمة مكوّناتنا.',
+    customPriceNote: 'مبني من قائمة مكوّناتنا ليطابق أحمالك.',
     indicativePrice: 'السعر التقديري',
     priceFrom: 'ابتداءً من ~',
     lyd: 'د.ل',
-    priceNote: 'تقدير أولي — يؤكّده مهندسنا بعد مراجعة سريعة.',
+    priceNote: 'تقدير أولي بناءً على إجاباتك.',
     whatNext: 'ما الذي يحدث بعد ذلك',
-    step1: 'نراجع بياناتك',
-    step2: 'نؤكّد الحجم والسعر عبر واتساب',
-    step3: 'نحدّد موعد التركيب',
+    step1: 'أرسل لنا تقديرك عبر واتساب',
+    step2: 'نجيب عن أسئلتك ونتفق على التفاصيل',
+    step3: 'نحدد موعد التركيب',
     whatsappCta: 'احصل على عرض السعر المفصّل عبر واتساب',
     startOver: 'ابدأ من جديد',
     trust: 'موثوق من أكثر من 4,000 عميل · شركاؤنا: Huawei · Sungrow · Trina',
@@ -749,9 +749,9 @@ const AR: Strings = {
         name +
         ' — احتياجي أكبر من الباقات القياسية (استهلاك يومي ~' +
         q.dailyKwh +
-        ' kWh)، ولم يتمكن النموذج من تسعيره. مرجع: ' +
+        ' kWh)، ولم يتمكن النموذج من حساب تقدير. مرجع: ' +
         q.configVersion +
-        '. يرجى ترتيب معاينة للموقع.' +
+        '. يرجى مساعدتي بعرض سعر.' +
         waContextAr(q)
       : q.isCustom
       ? 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
@@ -762,7 +762,7 @@ const AR: Strings = {
         q.dailyKwh +
         ' kWh). مرجع: ' +
         q.configVersion +
-        '. يرجى تأكيد عرض السعر المخصّص مع مهندسكم.' +
+        '. يرجى إرسال عرض السعر المفصّل.' +
         waContextAr(q)
       : 'مرحباً القمّة! لقد أكملت نموذج تقدير الطاقة الشمسية. اسمي ' +
         name +

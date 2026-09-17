@@ -68,11 +68,6 @@ export type CustomBomConfig = {
   roundUpToLyd: number
   /** The custom price never displays below this floor. */
   minimumLyd: number
-  /**
-   * Above this total the system is too large to quote unseen: the engine
-   * returns a SURVEY result with NO price rather than an eye-watering number.
-   */
-  maximumLyd: number
 }
 
 /**
@@ -117,6 +112,18 @@ export type CommercialConfig = {
    * to carry that load AND recharge the bank, so the two can disagree by 3×.
    */
   maxDcAcRatio: number
+  /**
+   * When the CUSTOMER path hands a large system to this method instead of
+   * the household custom BOM: once the sized inverter demand (kW, after the
+   * safety factor) exceeds this. Below it, parallel household inverters are
+   * the right tool; the commercial ladder's smallest rung is 30 kW, and
+   * applying it to a 13 kW house would oversize badly.
+   *
+   * The hand-over also requires every commercial component to carry a price
+   * (see `commercialReady`). Until then the household BOM prices everything,
+   * so the customer always gets a number.
+   */
+  customerPath: { takesOverAboveKw: number }
 }
 
 /** What the engineer types in. Every figure comes from a bill or a survey. */
@@ -280,11 +287,21 @@ export type NormalizedLoad = {
 export type Demand = {
   dailyKwh: number
   nightKwh: number
+  /**
+   * Average power over daylight hours, kW: (dailyKwh − nightKwh) ÷ daylight.
+   * The commercial method's "daytime load". The form never asks for daytime
+   * POWER, so this is derived from the energy split — a modelling choice the
+   * client is asked to confirm (docs/PRICING-INPUTS.md D6).
+   */
+  dayKw: number
   peakW: number
   inverterKw: number
   requiredKwp: number
   requiredUsableKwh: number
 }
+
+/** Which arm of the engine produced the result. Persisted with the lead. */
+export type SizingMethod = 'packages' | 'residentialBom' | 'commercial'
 
 export type ConstraintId = 'inverter' | 'battery' | 'panels' | 'acCount' | 'acBtu'
 export type WarningId =
@@ -318,13 +335,14 @@ export type EngineResult = {
   peakKw: number
   requiredKwp: number
   /**
-   * SURVEY = too large (or too uncertain) to price unseen. `priceFrom` is null
-   * and the UI routes the customer to a site visit instead of showing a number.
+   * SURVEY is reached by exactly one route: a non-finite demand from corrupt
+   * input, where no number would be honest. Every finite submission — however
+   * large — is priced; there is no size above which a person has to step in.
    */
   recommendedTier: PackageTier | 'CUSTOM' | 'SURVEY'
   /**
-   * Package price, or the custom BOM total (never below the config floor).
-   * null for SURVEY — we never invent a price we would not honour.
+   * Package price, the household BOM total (never below the config floor), or
+   * the commercial build total. null only for SURVEY.
    */
   priceFrom: number | null
   currency: 'LYD'
@@ -337,6 +355,13 @@ export type EngineResult = {
    */
   runtimeHours: number | null
   confidence: 'high' | 'low'
+  /** Which arm sized this — so a large quote's provenance is on the record. */
+  sizingMethod: SizingMethod
+  /**
+   * Engineering notes from the commercial method (e.g. the array is far larger
+   * than the inverter it selects). Staff-facing only; empty on other arms.
+   */
+  commercialFlags: CommercialFlag[]
   assumptionsMade: AssumptionId[]
   warnings: WarningId[]
   constraintsBinding: ConstraintId[]

@@ -1,6 +1,8 @@
+import { commercialReady, commercialToEngine, priceCommercialBom, sizeCommercial } from './commercial'
 import type { FormData } from '../types'
 import type {
   AssumptionId,
+  CommercialFlag,
   ConstraintId,
   CustomBomLine,
   CustomBuild,
@@ -9,6 +11,7 @@ import type {
   NormalizedLoad,
   Package,
   PricingConfig,
+  SizingMethod,
   SystemSpecs,
   WaQuote,
   WarningId,
@@ -214,9 +217,15 @@ export function computeDemand(
   }
 
   const peakW = acPeakW + sz.diversityFactor * otherPeakW
+  // Daytime power is never asked, so it is the daytime ENERGY spread over the
+  // daylight hours. A night-only load contributes nothing; a 24 h load
+  // contributes its full kW. Feeds the commercial method's "daytime load".
+  const daylightHours = Math.max(1, 24 - sz.alwaysOnNightHours)
+  const dayKw = Math.max(0, dailyKwh - nightKwh) / daylightHours
   return {
     dailyKwh,
     nightKwh,
+    dayKw,
     peakW,
     inverterKw: (peakW * sz.inverterSafetyFactor) / 1000,
     requiredKwp: dailyKwh / (sz.peakSunHours * sz.systemEfficiency),
@@ -384,7 +393,10 @@ function runtimeHoursFor(specs: SystemSpecs, demand: Demand, cfg: PricingConfig)
   return Math.min(round2(hours), 24)
 }
 
-/** A result we cannot price: too large, or the inputs made no sense. */
+/**
+ * The one result without a price: the inputs produced a non-finite demand,
+ * so no number would be honest. Size is never a reason to land here.
+ */
 function surveyResult(
   loads: NormalizedLoad[],
   demand: Demand,
@@ -408,6 +420,8 @@ function surveyResult(
     addOnsAvailable: [],
     runtimeHours: null,
     confidence: 'low',
+    sizingMethod: 'residentialBom',
+    commercialFlags: [],
     assumptionsMade,
     warnings,
     constraintsBinding: binding,
@@ -478,13 +492,40 @@ export function runEngine(d: FormData, cfg: PricingConfig): EngineResult {
     warnings.push('acBtuExceeded') // advisory mode only — strict gates this
   }
 
-  // Custom fallback: size and price a bespoke build from the component list.
-  const custom = matched ? null : priceCustomBom(demand, cfg)
-
-  // Too big to quote unseen. Without this the form's own maximum inputs
-  // produce a seven-figure price with no feasibility check behind it.
-  if (custom && custom.build.totalLyd > cfg.customBom.maximumLyd) {
-    return surveyResult(loads, demand, cfg, warnings, assumptionsMade, binding, custom.build)
+  // No package fits: size and price a bespoke build. Two arms, chosen by the
+  // size of the job and by whether Al Qema's commercial method can be priced
+  // yet — never by a person. Every finite submission leaves here with a price.
+  let custom: { build: CustomBuild; specs: SystemSpecs } | null = null
+  let sizingMethod: SizingMethod = 'packages'
+  let commercialFlags: CommercialFlag[] = []
+  if (!matched) {
+    const cm = cfg.commercial
+    const large = cm !== undefined && demand.inverterKw > cm.customerPath.takesOverAboveKw
+    if (cm && large && commercialReady(cfg)) {
+      // The client's own method for large installations, run on the demand
+      // the form produced. Its inputs are energy from the batteries, daytime
+      // load and peak — all three are here, none needs a new question.
+      const sized = sizeCommercial(
+        {
+          batteryKwh: demand.nightKwh,
+          dayLoadKw: demand.dayKw,
+          peakKw: demand.peakW / 1000,
+        },
+        cm,
+      )
+      if (sized.ok) {
+        const priced = priceCommercialBom(sized.sizing, cfg, cm)
+        custom = commercialToEngine(sized.sizing, priced, cfg, cm)
+        sizingMethod = 'commercial'
+        commercialFlags = sized.sizing.flags
+      }
+    }
+    if (!custom) {
+      // The household BOM: parallel inverters as needed, no upper cap. Also
+      // the fallback while the commercial rate card is incomplete.
+      custom = priceCustomBom(demand, cfg)
+      sizingMethod = 'residentialBom'
+    }
   }
 
   const specs = matched ? packageSpecs(matched, cfg) : custom!.specs
@@ -513,6 +554,8 @@ export function runEngine(d: FormData, cfg: PricingConfig): EngineResult {
     addOnsAvailable: cfg.addOns.map((a) => ({ name: a.name, priceLyd: a.priceLyd })),
     runtimeHours: runtimeHoursFor(specs, demand, cfg),
     confidence: lowersConfidence(assumptionsMade) ? 'low' : 'high',
+    sizingMethod,
+    commercialFlags,
     assumptionsMade,
     warnings,
     constraintsBinding: binding,
