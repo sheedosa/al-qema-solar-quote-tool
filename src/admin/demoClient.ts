@@ -53,6 +53,14 @@ class Query implements PromiseLike<Result> {
     this.rows = this.rows.filter((r) => r[col] === val)
     return this
   }
+  /** SQL LIKE with `%` and `_`, as the version query uses it. */
+  like(col: string, pattern: string) {
+    const re = new RegExp(
+      '^' + pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.') + '$',
+    )
+    this.rows = this.rows.filter((r) => typeof r[col] === 'string' && re.test(r[col] as string))
+    return this
+  }
   maybeSingle() {
     this.wantOne = true
     return this

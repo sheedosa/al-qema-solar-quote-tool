@@ -4,7 +4,7 @@ import { C, cardStyle } from '../theme'
 import { formatPhoneE164 } from '../logic'
 import type { EngineResult } from '../pricing/types'
 import type { FormData } from '../types'
-import { Auto, Ltr, Money, TdNum, tdNum, tdText, thNum, thText } from './controls'
+import { Auto, Dots, Ltr, Money, TdNum, tdNum, tdText, thNum, thText } from './controls'
 import { isDemoMode } from './demoClient'
 import { fmtDateTime, fmtNum, fmtRelative, plural } from './format'
 import { lookup, useAdminLang } from './i18n'
@@ -195,21 +195,6 @@ function KV({ label, value }: { label: string; value: ReactNode }) {
         {value}
       </span>
     </div>
-  )
-}
-
-/** "12,000 BTU · 8h · nights" — parts joined by a neutral separator. */
-function Dots({ parts }: { parts: ReactNode[] }) {
-  const shown = parts.filter((p) => p !== null && p !== undefined && p !== false && p !== '')
-  return (
-    <>
-      {shown.map((p, i) => (
-        <span key={i}>
-          {i > 0 && ' · '}
-          {p}
-        </span>
-      ))}
-    </>
   )
 }
 
