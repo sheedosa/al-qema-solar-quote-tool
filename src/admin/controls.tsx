@@ -410,6 +410,7 @@ export function Btn({
   style,
   testId,
   type = 'button',
+  ariaExpanded,
 }: {
   kind?: BtnKind
   onClick?: () => void
@@ -420,6 +421,7 @@ export function Btn({
   style?: CSSProperties
   testId?: string
   type?: 'button' | 'submit'
+  ariaExpanded?: boolean
 }) {
   return (
     <button
@@ -428,6 +430,7 @@ export function Btn({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
       title={title}
       data-testid={testId}
       style={{ ...btnStyle(kind, disabled), ...style }}

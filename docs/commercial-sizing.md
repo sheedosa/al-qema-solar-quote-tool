@@ -100,7 +100,8 @@ list as **"no price"** with the quantity still shown:
   quietly reuse that price for a different panel;
 - the **commercial inverters** at every size from 30 to 300 kW.
 
-Add either in the admin panel under **Pricing → Component price list** and the total completes
+Add either in the admin panel under **Pricing → Component prices** — the parts this method still
+needs are pinned at the top of that list with an *Add price* box — and the total completes
 itself. Until then, Example 1 prices at **419,000 LYD** for the parts that *are* on the list —
 the batteries alone are 337,500 — with the panels and the inverter still open.
 
@@ -109,8 +110,8 @@ the batteries alone are 337,500 — with the panels and the inverter still open.
 The quote tool is fully automatic: every customer who finishes the form sees a price, and no
 one at Al Qema has to confirm it. For large systems that price comes from this method.
 
-- **When it runs:** a customer whose sized inverter demand is above **20 kW** (a setting in the
-  admin panel) is routed here instead of to the household build. The battery energy is their
+- **When it runs:** a customer whose sized inverter demand is above **20 kW** (a setting under
+  **Pricing → Advanced → Large-system method**) is routed here instead of to the household build. The battery energy is their
   night-time load; the daytime load is their daytime energy spread over the daylight hours; the
   peak is their peak. See D6 and D7 in the questionnaire for the two readings we chose.
 - **What it needs:** every component in this method must have a price. The two that are
