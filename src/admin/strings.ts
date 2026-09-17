@@ -18,6 +18,7 @@
  */
 import type { Lang } from '../i18n'
 import type { CommercialFlag } from '../pricing/types'
+import type { ReferenceCaseId } from '../pricing/referenceCases'
 import type { AssumptionId, ConstraintId, EngineResult, SizingMethod, WarningId } from '../pricing/types'
 import type { PluralForms } from './format'
 
@@ -292,6 +293,16 @@ const EN = {
     saving: 'Saving…',
     saveActivate: 'Save & activate',
     saveActivateAs: 'Save & activate as',
+    /** The six households re-priced before every publish. */
+    referenceCase: {
+      smallFlat: 'Small flat',
+      familyHomeOneAc: 'Family home, one AC',
+      homeAcAndFreezer: 'Home, AC and freezer',
+      homeTwoAcs: 'Home with two ACs',
+      shop: 'Shop',
+      largeVilla: 'Large villa',
+      workshop: 'Workshop',
+    } satisfies Record<ReferenceCaseId, string>,
   },
 
   sizing: {
@@ -633,6 +644,15 @@ export const AR: AdminStrings = {
     saving: 'جارٍ الحفظ…',
     saveActivate: 'حفظ وتفعيل',
     saveActivateAs: 'حفظ وتفعيل باسم',
+    referenceCase: {
+      smallFlat: 'شقة صغيرة',
+      familyHomeOneAc: 'منزل عائلي بمكيف واحد',
+      homeAcAndFreezer: 'منزل بمكيف وفريزر',
+      homeTwoAcs: 'منزل بمكيفين',
+      shop: 'محل',
+      largeVilla: 'فيلا كبيرة',
+      workshop: 'ورشة',
+    },
   },
 
   sizing: {

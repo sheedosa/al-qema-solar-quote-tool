@@ -15,7 +15,8 @@ export type ValidationResult =
   | { ok: true; config: PricingConfig }
   | { ok: false; errors: string[] }
 
-const TIER_ORDER = ['S', 'M', 'L', 'XL', 'XXL']
+/** Package order, S to XXL. Exported so the admin labels a row by tier, not index. */
+export const TIER_ORDER = ['S', 'M', 'L', 'XL', 'XXL']
 const INCLUDE_IDS = ['installConnection', 'economyLighting', 'tvScreen', 'fridge', 'freezerOrPump']
 
 /**

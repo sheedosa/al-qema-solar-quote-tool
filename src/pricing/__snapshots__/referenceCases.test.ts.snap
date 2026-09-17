@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Reference households > golden: the package and price each household lands on 1`] = `
+{
+  "familyHomeOneAc": "M 15417",
+  "homeAcAndFreezer": "L 32247",
+  "homeTwoAcs": "XL 40600",
+  "largeVilla": "CUSTOM 71500",
+  "shop": "XXL 55500",
+  "smallFlat": "S 8730",
+  "workshop": "CUSTOM 238500",
+}
+`;
