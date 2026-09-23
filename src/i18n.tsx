@@ -112,8 +112,6 @@ const EN = {
     kicker: 'Your power use',
     title: 'Your power situation',
     outageTitle: 'Average daily power cuts',
-    nightTitle: 'At night, can you run only the essentials to save battery?',
-    operationTitle: 'What do you want to keep running?',
     footer: 'This helps us size your battery correctly.',
   },
   cooling: {
@@ -196,8 +194,6 @@ const EN = {
       property: 'Property',
       city: 'City / area',
       dailyCuts: 'Daily cuts',
-      atNight: 'At night',
-      usagePattern: 'To keep running',
       acUnits: 'AC units',
       fridge: 'Fridge',
       freezer: 'Freezer',
@@ -371,10 +367,6 @@ const EN = {
   },
   // Shorter labels used only on the review screen.
   reviewMap: {
-    nightEconomy: {
-      yes: 'Essentials only at night',
-      no: 'Similar power day & night',
-    } as Record<string, string>,
     system: {
       hybrid: 'Hybrid',
       offgrid: 'Off-grid',
@@ -474,8 +466,6 @@ const AR: Strings = {
     kicker: 'استهلاك الطاقة',
     title: 'وضع الطاقة لديك',
     outageTitle: 'متوسط انقطاع الكهرباء يومياً',
-    nightTitle: 'في الليل، هل يمكنك تشغيل الأساسيات فقط لتوفير البطارية؟',
-    operationTitle: 'ما الذي ترغب في إبقائه يعمل؟',
     footer: 'يساعدنا هذا في تحديد حجم بطاريتك بدقة.',
   },
   cooling: {
@@ -557,8 +547,6 @@ const AR: Strings = {
       property: 'العقار',
       city: 'المدينة / المنطقة',
       dailyCuts: 'الانقطاع اليومي',
-      atNight: 'في الليل',
-      usagePattern: 'ما تريد تشغيله',
       acUnits: 'عدد المكيّفات',
       fridge: 'ثلاجة',
       freezer: 'مجمّد (فريزر)',
@@ -726,10 +714,6 @@ const AR: Strings = {
     },
   },
   reviewMap: {
-    nightEconomy: {
-      yes: 'الأساسيات فقط ليلاً',
-      no: 'طاقة مماثلة نهاراً وليلاً',
-    },
     system: {
       hybrid: 'هجين',
       offgrid: 'منفصل عن الشبكة',

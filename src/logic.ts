@@ -111,7 +111,7 @@ export function canContinue(d: FormData, step: number): boolean {
     )
   }
   if (step === 2) {
-    return !!(d.outageHours && d.nightEconomy && d.operation)
+    return !!d.outageHours
   }
   return true
 }

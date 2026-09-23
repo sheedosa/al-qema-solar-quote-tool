@@ -73,8 +73,6 @@ export function buildReviewGroups(d: FormData, s: Strings): ReviewGroup[] {
       step: 2,
       rows: [
         { k: R.keys.dailyCuts, v: dash(s.opt.outage[d.outageHours]) },
-        { k: R.keys.usagePattern, v: dash(s.opt.operation[d.operation]) },
-        { k: R.keys.atNight, v: dash(s.reviewMap.nightEconomy[d.nightEconomy]) },
       ],
     },
     { title: R.groups.cooling, step: 3, rows: coolBits },

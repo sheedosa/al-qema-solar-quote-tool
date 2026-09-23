@@ -506,8 +506,11 @@ function Detail({ lead }: { lead: LeadRow }) {
 
       <Section title={d.answers}>
         <KV label={d.dailyCuts} value={lookup(opt.outage, form.outageHours) || dash} />
-        <KV label={d.keepRunning} value={lookup(opt.operation, form.operation) || dash} />
-        <KV label={d.nightEconomy} value={lookup(opt.nightEconomyFull, form.nightEconomy) || dash} />
+        {/* No longer asked; older leads still carry the answers. */}
+        {form.operation && <KV label={d.keepRunning} value={lookup(opt.operation, form.operation)} />}
+        {form.nightEconomy && (
+          <KV label={d.nightEconomy} value={lookup(opt.nightEconomyFull, form.nightEconomy)} />
+        )}
         <KV label={d.acUnits} value={<Ltr>{form.acUnits.length}</Ltr>} />
         {form.acUnits.map((u, i) => (
           <KV

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { C } from '../theme'
 import { Card, CheckOption, Kicker } from '../components/ui'
-import { OPERATION_VALS, OUTAGE_VALS, useStrings } from '../i18n'
+import { OUTAGE_VALS, useStrings } from '../i18n'
 import type { QuoteForm } from '../useQuoteForm'
 
 function Section({
@@ -64,21 +64,9 @@ export function Screen2Power({ form }: { form: QuoteForm }) {
           onSelect={(val) => setD({ outageHours: val })}
           wrap
         />
-        {/* The ladder comes before the night question, which refines it. */}
-        <Section
-          title={s.power.operationTitle}
-          vals={OPERATION_VALS}
-          labelOf={(v) => s.opt.operation[v]}
-          current={d.operation}
-          onSelect={(val) => setD({ operation: val })}
-        />
-        <Section
-          title={s.power.nightTitle}
-          vals={['yes', 'no']}
-          labelOf={(v) => s.opt.nightEconomyFull[v]}
-          current={d.nightEconomy}
-          onSelect={(val) => setD({ nightEconomy: val })}
-        />
+        {/* "What to keep running" and "essentials only at night" were asked
+            here too. The engine never read them, and Step 5's power-cut
+            priority asks the same thing precisely, so they were removed. */}
         <p style={{ margin: 0, fontSize: 13, fontWeight: 400, color: C.muted, textAlign: 'center' }}>
           {s.power.footer}
         </p>
