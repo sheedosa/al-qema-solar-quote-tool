@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
 import { C } from '../theme'
 import { LangToggle } from './controls'
 import { AdminLangProvider, useAdminLang } from './i18n'
@@ -7,9 +6,9 @@ import { Login } from './Login'
 import { PricingEditor } from './PricingEditor'
 import { SizingCalculator } from './SizingCalculator'
 import { Submissions } from './Submissions'
-import { isDemoMode } from './demoClient'
+import { backend, isDemoMode } from './backend'
+import type { StaffSession } from './backend'
 import type { TabId } from './strings'
-import { supabase } from './supabaseClient'
 import { useIsMobile } from './useIsMobile'
 
 const TAB_IDS: TabId[] = ['submissions', 'pricing', 'sizing']
@@ -30,23 +29,22 @@ export default function AdminApp() {
 }
 
 function AdminShell() {
-  const [session, setSession] = useState<Session | null>(null)
-  const [ready, setReady] = useState(false)
+  const [session, setSession] = useState<StaffSession | null>(() => backend.getSession())
+  const [expired, setExpired] = useState(false)
   const [tab, setTab] = useState<TabId>('submissions')
   const isMobile = useIsMobile()
   const { t } = useAdminLang()
 
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setReady(true)
-    })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
-    return () => sub.subscription.unsubscribe()
-  }, [])
+  useEffect(
+    () =>
+      backend.onSessionChange((s, reason) => {
+        setSession(s)
+        setExpired(reason === 'expired')
+      }),
+    [],
+  )
 
-  if (!ready) return null
-  if (!session) return <Login />
+  if (!session) return <Login expired={expired} />
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     // 44px is the minimum comfortable touch target; the old 38px was below it.
@@ -157,7 +155,7 @@ function AdminShell() {
             */}
             {!isMobile && (
               <span style={{ fontSize: 12.5, color: C.muted, marginInlineStart: 8 }}>
-                {session.user.email}
+                {session.email}
               </span>
             )}
             {/*
@@ -168,7 +166,7 @@ function AdminShell() {
             <LangToggle compact={isMobile} />
             <button
               className="admin-focusable"
-              onClick={() => void supabase.auth.signOut()}
+              onClick={() => backend.signOut()}
               style={{
                 minHeight: 44,
                 minWidth: 44,

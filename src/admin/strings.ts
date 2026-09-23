@@ -64,14 +64,21 @@ const EN = {
   },
 
   login: {
-    email: 'Email',
-    password: 'Password',
-    signIn: 'Sign in',
+    prompt: 'Sign in with the Google account on the staff list.',
+    signingIn: 'Signing in…',
+    notStaff: 'This Google account is not on the staff list. Ask the sheet’s owner to add it to the Staff tab.',
+    failed: 'Google sign-in did not go through. Try again.',
+    unreachable: 'Could not reach the Google Sheet. Check the connection and try again.',
+    notConfigured: 'Sign-in is not set up yet. The backend URL and the Google client ID must be filled in (see backend/README.md).',
+    googleUnavailable: 'The Google sign-in button could not load. Check the connection, or disable any blocker for accounts.google.com.',
+    expired: 'Your session ended. Sign in again.',
   },
 
   leads: {
     count: plural({ one: '{n} submission', other: '{n} submissions' }),
     exportCsv: 'Export CSV',
+    openSheet: 'Open Google Sheet',
+    statusHint: 'Status is set by the team in the Google Sheet.',
     showMore: (n: string, remaining: string) => `Show ${n} more (${remaining} remaining)`,
     emptyTitle: 'No submissions yet',
     emptyBody: 'Leads appear here the moment a customer finishes the wizard.',
@@ -86,6 +93,7 @@ const EN = {
       tier: 'Tier',
       price: 'Price',
       confidence: 'Confidence',
+      status: 'Status',
     },
     siteVisitNoPrice: 'Site visit — no price',
     customPill: 'custom',
@@ -236,6 +244,12 @@ const EN = {
 
   pricing: {
     loading: 'Loading pricing config…',
+    loadFailed: 'Could not read the published prices from the Google Sheet.',
+    retry: 'Try again',
+    unpublishedTitle: 'No prices published yet',
+    unpublishedBody:
+      'The site is using the built-in prices. Publish them once to start the version history in the Google Sheet — or edit them first.',
+    publishBuiltIn: 'Publish the built-in prices',
     intro:
       'The prices customers see. Package prices are fixed; anything beyond the packages is priced from the component list. Nothing goes live until you review and publish.',
 
@@ -467,10 +481,7 @@ const EN = {
     outcome: {
       published: (v: string) => `Published ${v} — live for new visitors now.`,
       activated: (v: string) => `Activated ${v}.`,
-      insertFailed: 'Nothing was saved — the database refused the new version:',
-      clash: 'Nothing was saved — the version number was taken twice in a row. Try again.',
-      savedNotActive: (v: string) =>
-        `${v} was saved but is NOT live — activating it failed. It is in the version history; activate it from there or try again.`,
+      failed: 'Nothing was saved — the Google Sheet could not take the new version:',
       activateFailed: 'Could not activate this version:',
       invalid: 'The draft failed a final check and was not saved.',
     },
@@ -725,9 +736,14 @@ export const AR: AdminStrings = {
   },
 
   login: {
-    email: 'البريد الإلكتروني',
-    password: 'كلمة المرور',
-    signIn: 'تسجيل الدخول',
+    prompt: 'سجّل الدخول بحساب Google المدرج في قائمة الموظفين.',
+    signingIn: 'جارٍ تسجيل الدخول…',
+    notStaff: 'حساب Google هذا ليس في قائمة الموظفين. اطلب من مالك الجدول إضافته إلى ورقة Staff.',
+    failed: 'لم يكتمل تسجيل الدخول عبر Google. حاول مجددًا.',
+    unreachable: 'تعذّر الوصول إلى جدول Google. تحقّق من الاتصال وحاول مجددًا.',
+    notConfigured: 'تسجيل الدخول غير مُعدّ بعد. يجب إدخال رابط الخادم ومعرّف عميل Google (راجع backend/README.md).',
+    googleUnavailable: 'تعذّر تحميل زر تسجيل الدخول عبر Google. تحقّق من الاتصال أو عطّل أي مانع لـ accounts.google.com.',
+    expired: 'انتهت جلستك. سجّل الدخول مجددًا.',
   },
 
   leads: {
@@ -740,6 +756,8 @@ export const AR: AdminStrings = {
       other: '{n} طلب',
     },
     exportCsv: 'تصدير CSV',
+    openSheet: 'فتح جدول Google',
+    statusHint: 'يحدّد الفريق الحالة في جدول Google.',
     showMore: (n, remaining) => `عرض ${n} أخرى (${remaining} متبقية)`,
     emptyTitle: 'لا توجد طلبات بعد',
     emptyBody: 'تظهر الطلبات هنا فور إكمال العميل للنموذج.',
@@ -754,6 +772,7 @@ export const AR: AdminStrings = {
       tier: 'الباقة',
       price: 'السعر',
       confidence: 'الثقة',
+      status: 'الحالة',
     },
     siteVisitNoPrice: 'معاينة الموقع — بدون سعر',
     customPill: 'مخصّص',
@@ -910,6 +929,12 @@ export const AR: AdminStrings = {
 
   pricing: {
     loading: 'جارٍ تحميل إعدادات الأسعار…',
+    loadFailed: 'تعذّرت قراءة الأسعار المنشورة من جدول Google.',
+    retry: 'حاول مجددًا',
+    unpublishedTitle: 'لم تُنشر أي أسعار بعد',
+    unpublishedBody:
+      'الموقع يستخدم الأسعار المدمجة. انشرها مرة واحدة لبدء سجل الإصدارات في جدول Google — أو عدّلها أولًا.',
+    publishBuiltIn: 'نشر الأسعار المدمجة',
     intro:
       'الأسعار التي يراها العملاء. أسعار الباقات ثابتة؛ وما يتجاوز الباقات يُسعَّر من قائمة المكوّنات. لا يسري شيء حتى تراجع وتنشر.',
 
@@ -1161,10 +1186,7 @@ export const AR: AdminStrings = {
     outcome: {
       published: (v) => `تم نشر ${v} — يسري على الزوار الجدد الآن.`,
       activated: (v) => `تم تفعيل ${v}.`,
-      insertFailed: 'لم يُحفَظ شيء — رفضت قاعدة البيانات الإصدار الجديد:',
-      clash: 'لم يُحفَظ شيء — رقم الإصدار أُخذ مرتين متتاليتين. حاول مجددًا.',
-      savedNotActive: (v) =>
-        `حُفظ ${v} لكنه غير ساري — فشل تفعيله. تجده في سجل الإصدارات؛ فعّله من هناك أو حاول مجددًا.`,
+      failed: 'لم يُحفَظ شيء — تعذّر على جدول Google حفظ الإصدار الجديد:',
       activateFailed: 'تعذّر تفعيل هذا الإصدار:',
       invalid: 'فشلت المسودة في فحص أخير ولم تُحفَظ.',
     },

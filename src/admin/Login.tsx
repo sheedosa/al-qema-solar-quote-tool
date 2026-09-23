@@ -1,25 +1,112 @@
-import { useState } from 'react'
-import { C, cardStyle, inputStyle } from '../theme'
+import { useEffect, useRef, useState } from 'react'
+import { GOOGLE_CLIENT_ID } from '../config'
+import { C, cardStyle } from '../theme'
+import { backend } from './backend'
 import { LangToggle } from './controls'
 import { useAdminLang } from './i18n'
-import { supabase } from './supabaseClient'
 
-/** Email + password sign-in for company staff. No self-signup path exists. */
-export function Login() {
-  const { t } = useAdminLang()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+/**
+ * Staff sign in with Google. Google proves who they are; the backend then
+ * checks the email against the sheet's Staff tab, so there is no password to
+ * manage and no self-signup path. Google's own 2-step verification applies.
+ */
+
+type Gsi = {
+  accounts: {
+    id: {
+      initialize(o: { client_id: string; callback: (r: { credential?: string }) => void; ux_mode?: 'popup'; auto_select?: boolean }): void
+      renderButton(el: HTMLElement, o: Record<string, unknown>): void
+      disableAutoSelect(): void
+    }
+  }
+}
+declare global {
+  interface Window {
+    google?: Gsi
+  }
+}
+
+const GSI_SRC = 'https://accounts.google.com/gsi/client'
+let gsiPromise: Promise<Gsi> | null = null
+
+/** Load Google Identity Services once; it lives in the admin chunk only. */
+function loadGsi(): Promise<Gsi> {
+  if (window.google?.accounts?.id) return Promise.resolve(window.google)
+  if (!gsiPromise) {
+    gsiPromise = new Promise<Gsi>((resolve, reject) => {
+      const el = document.createElement('script')
+      el.src = GSI_SRC
+      el.async = true
+      el.onload = () => (window.google?.accounts?.id ? resolve(window.google) : reject(new Error('gsi')))
+      el.onerror = () => reject(new Error('gsi'))
+      document.head.appendChild(el)
+    }).catch((e) => {
+      gsiPromise = null
+      throw e
+    })
+  }
+  return gsiPromise
+}
+
+export function Login({ expired = false }: { expired?: boolean }) {
+  const { t, lang } = useAdminLang()
+  const L = t.login
+  const buttonRef = useRef<HTMLDivElement>(null)
+  const [error, setError] = useState(expired ? L.expired : '')
   const [busy, setBusy] = useState(false)
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-    if (err) setError(err.message)
-    setBusy(false)
-  }
+  useEffect(() => {
+    if (!backend.configured) {
+      setError(L.notConfigured)
+      return
+    }
+    let alive = true
+    loadGsi()
+      .then((g) => {
+        if (!alive || !buttonRef.current) return
+        g.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          ux_mode: 'popup',
+          auto_select: false,
+          callback: async (r) => {
+            if (!r.credential) {
+              setError(L.failed)
+              return
+            }
+            setBusy(true)
+            setError('')
+            const res = await backend.signIn(r.credential)
+            setBusy(false)
+            if (res.ok) return
+            setError(
+              res.code === 'not_staff'
+                ? L.notStaff
+                : res.code === 'not_configured'
+                  ? L.notConfigured
+                  : res.code === 'network' || res.code === 'bad_response'
+                    ? L.unreachable
+                    : L.failed,
+            )
+          },
+        })
+        buttonRef.current.innerHTML = ''
+        // Google draws the button in the admin's language.
+        g.accounts.id.renderButton(buttonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'rectangular',
+          width: 300,
+          locale: lang,
+        })
+      })
+      .catch(() => alive && setError(L.googleUnavailable))
+    return () => {
+      alive = false
+    }
+    // Re-render the button when the language changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang])
 
   return (
     <div
@@ -32,7 +119,7 @@ export function Login() {
         padding: 20,
       }}
     >
-      <form onSubmit={submit} style={{ ...cardStyle, width: '100%', maxWidth: 380, padding: 28 }}>
+      <div style={{ ...cardStyle, width: '100%', maxWidth: 380, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <div
             style={{
@@ -51,69 +138,23 @@ export function Login() {
           >
             Q
           </div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: C.ink, flex: 1, minWidth: 0 }}>
-            {t.app.title}
-          </div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: C.ink, flex: 1, minWidth: 0 }}>{t.app.title}</div>
           <LangToggle />
         </div>
-        <label style={{ fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 6 }}>
-          {t.login.email}
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="username"
-          // An address is Latin whatever the page direction.
-          dir="ltr"
-          style={{ ...inputStyle, marginBottom: 14 }}
+        <p style={{ fontSize: 14, color: C.body, lineHeight: 1.5, margin: '0 0 16px', textAlign: 'start' }}>{L.prompt}</p>
+        {/* Google renders its button here; min height keeps the card steady while it loads. */}
+        <div
+          ref={buttonRef}
+          data-testid="google-button"
+          style={{ minHeight: 44, display: 'flex', justifyContent: 'center', opacity: busy ? 0.5 : 1 }}
         />
-        <label style={{ fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 6 }}>
-          {t.login.password}
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          dir="ltr"
-          style={{ ...inputStyle, marginBottom: 18 }}
-        />
+        {busy && <div style={{ fontSize: 13.5, color: C.muted, marginTop: 12, textAlign: 'center' }}>{L.signingIn}</div>}
         {error && (
-          // Server text, in whatever language the server speaks — its own
-          // paragraph so it aligns as itself rather than as Arabic prose.
-          <div
-            dir="auto"
-            style={{
-              color: C.red,
-              fontSize: 13.5,
-              fontWeight: 500,
-              marginBottom: 12,
-              textAlign: 'start',
-            }}
-          >
+          <div role="alert" style={{ color: C.red, fontSize: 13.5, fontWeight: 500, marginTop: 14, lineHeight: 1.5, textAlign: 'start' }}>
             {error}
           </div>
         )}
-        <button
-          type="submit"
-          disabled={busy}
-          style={{
-            width: '100%',
-            minHeight: 48,
-            border: 'none',
-            borderRadius: 12,
-            background: C.red,
-            color: C.white,
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: busy ? 'wait' : 'pointer',
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          {t.login.signIn}
-        </button>
-      </form>
+      </div>
     </div>
   )
 }

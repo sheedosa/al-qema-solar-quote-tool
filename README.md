@@ -29,8 +29,10 @@ npm run build    # type-check + production build to dist/
 npm run preview  # preview the production build
 ```
 
-It's a fully client-side static app — `dist/` can be deployed to any static host
-(Netlify, Vercel, Cloudflare Pages, S3, etc.). No backend required.
+It's a static app — `dist/` can be deployed to any static host. Its backend is a single
+**Google Sheet** with an Apps Script attached: submissions land in the sheet, published
+prices live in it, and staff sign in to the admin panel with Google. Setup, for the sheet's
+owner, is in [`backend/README.md`](backend/README.md).
 
 ## The flow
 
@@ -38,7 +40,7 @@ Eight screens (`step` 0–7):
 
 0. **Welcome** — intro + trust badges
 1. **Your details** — name, WhatsApp number, property type, city _(validated)_
-2. **Power situation** — daily outages, what you want to keep running, night economy _(validated)_
+2. **Power situation** — daily power cuts _(validated)_
 3. **Cooling** — dynamic AC units (0–10, fixed BTU capacity) + fridge/freezer
 4. **Lighting & appliances** — bulbs, preset/custom appliance builder (quantity only)
 5. **Preferences** — system type, cut priority, roof space/shade, optional photos
@@ -64,8 +66,8 @@ The result screen is driven by a pure, deterministic engine in `src/pricing/`:
   Unknown answers never crash: documented defaults apply and the result is flagged
   `confidence: 'low'`.
 - [`persist.ts`](src/pricing/persist.ts) — auditable quote records (input payload + computed
-  output + `configVersion`). Currently a no-op stub; swap in Supabase/API here and nothing else
-  changes.
+  output + `configVersion`), sent to the Google Sheet with retries and an offline queue. Each
+  carries an id, so a resend never creates a second row.
 - [`engine.test.ts`](src/pricing/engine.test.ts) — `npm test` (Vitest). Includes a
   reconciliation test that rebuilds the client's 16/07/2026 quotation from the component rates
   to exactly 84,300 LYD.
@@ -81,6 +83,8 @@ Deployment-tunable values live in [`src/config.ts`](src/config.ts):
 
 - `WA_NUMBER` — the WhatsApp business number the estimate is sent to
 - `SHOW_PRICE` — toggle the indicative price card on the result screen
+- `SHEETS_API_URL`, `GOOGLE_CLIENT_ID`, `SHEET_URL` — the backend (see `backend/README.md`)
+- `SHEET_LANG` — the language of the values written to the Leads sheet (Arabic by default)
 
 ## Project structure
 
@@ -90,6 +94,8 @@ src/
   i18n.tsx             AR + EN string bundles, language context, RTL handling
   logic.ts             form defaults, validation, preset names, WhatsApp link
   pricing/             sizing & pricing engine (config, engine, persist, tests)
+  backend/             API client, Leads-row builder, and tests of the Apps Script
+  admin/               the staff panel at #/admin (leads, pricing, sizing)
   review.ts            builds the localized review-screen summary groups
   useQuoteForm.ts      form state + all mutations
   types.ts             form data types

@@ -1,11 +1,11 @@
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from '../config'
+import { fetchActiveConfig } from '../backend/api'
 import { PRICING_CONFIG } from './config'
 import type { PricingConfig } from './types'
 import { validatePricingConfig } from './validate'
 
 /**
  * Boot-time pricing-config loader. Resolution order:
- *   1. the active row in the database (3s timeout),
+ *   1. the active version in the backend's Pricing tab,
  *   2. the last good copy cached in localStorage,
  *   3. the config bundled with the app.
  * Whichever wins is used for the WHOLE session — the price a customer sees,
@@ -28,28 +28,25 @@ function fromCache(): PricingConfig | null {
   }
 }
 
-export async function loadActiveConfig(timeoutMs = 3000): Promise<LoadedConfig> {
+/**
+ * How long to wait for the backend. Apps Script can take a few seconds to
+ * wake up, and a first-time visitor has no cached copy — falling back to the
+ * bundled prices there would quote them figures the team may have changed.
+ * A returning visitor already holds the last published version, so a slow
+ * backend costs them less.
+ */
+export const TIMEOUT_NO_CACHE_MS = 6000
+export const TIMEOUT_WITH_CACHE_MS = 3000
+
+export async function loadActiveConfig(timeoutMs?: number): Promise<LoadedConfig> {
+  const cached = fromCache()
+  const wait = timeoutMs ?? (cached ? TIMEOUT_WITH_CACHE_MS : TIMEOUT_NO_CACHE_MS)
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/pricing_configs?is_active=eq.true&select=config&limit=1',
-      {
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
-        signal: controller.signal,
-      },
-    )
-    // clearTimeout used to run HERE, before the body was read — so the abort
-    // covered the headers but not `res.json()`. A server that returned headers
-    // and then stalled left this promise pending forever, and because the
-    // whole first render waits on it the customer got a permanently blank page.
-    let rows: { config?: unknown }[] = []
-    if (res.ok) {
-      rows = await res.json()
-    }
-    clearTimeout(timer)
-    if (res.ok) {
-      const checked = validatePricingConfig(rows[0]?.config)
+    const res = await fetchActiveConfig(wait)
+    // `config: null` means nothing has been published yet: the bundled
+    // prices ARE the prices, so it is not a failure and the cache stays.
+    if (res.ok && res.config !== null) {
+      const checked = validatePricingConfig(res.config)
       if (checked.ok) {
         try {
           localStorage.setItem(CACHE_KEY, JSON.stringify(checked.config))
@@ -58,12 +55,12 @@ export async function loadActiveConfig(timeoutMs = 3000): Promise<LoadedConfig> 
         }
         return { cfg: checked.config, source: 'remote' }
       }
+      console.warn('[alqema] published config failed validation', checked.errors.slice(0, 3))
     }
   } catch {
-    // network failure / timeout — fall through
+    // fetchActiveConfig never throws; belt and braces for the first render.
   }
 
-  const cached = fromCache()
   if (cached) return { cfg: cached, source: 'cache' }
   return { cfg: PRICING_CONFIG, source: 'bundled' }
 }

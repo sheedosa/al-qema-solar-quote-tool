@@ -59,12 +59,15 @@ The bottom bar’s button is **Review N changes**. It opens a sheet with three p
    a workshop) priced with what is live now and with the draft. Rows that move are highlighted
    and say where they moved to. At the shipped prices these land on S, M, L, XL, XXL and two
    custom builds, so every price on the page moves at least one row.
-3. **Confirm** — *Publish as pricing-YYYY-MM-DD.N*. The version number is assigned from the
-   database at the moment of publishing.
+3. **Confirm** — *Publish as pricing-YYYY-MM-DD.N*. The Google Sheet assigns the version
+   number and makes it live in one step, so a version is either published and live or not
+   saved at all.
 
-The outcome is stated exactly: published and live; nothing saved (the database refused it, or
-the version number was taken twice); or **saved but not live**, in which case the version is
-in the history and can be activated from there.
+The outcome is stated exactly: published and live, or nothing saved with the reason. Every
+version is a row in the sheet's protected **Pricing** tab.
+
+**Before anything is published** the site uses the built-in prices, and the page offers
+*Publish the built-in prices* to start the version history.
 
 **Activating an older version** goes through the same sheet, comparing that version against
 what is live now. A version that no longer passes the current checks cannot be activated. If
@@ -78,7 +81,7 @@ Leaving the page with unsaved edits asks for confirmation.
 - `src/admin/PricingEditor.tsx` — the shell (load, draft, review state, bar).
 - `src/admin/pricing/` — `PricesPanel`, `ComponentPrices`, `AdvancedPanel` and its five
   sections, `PublishReview`, `VersionHistory`, `ActionBar`; `useConfigDraft` (draft state and
-  live validation), `configRepo` (database calls and the version rule), `bound.tsx`
+  live validation), `configRepo` (backend calls and the version label), `bound.tsx`
   (controls bound to a config path), `componentTools` (grouping, used-by, rename).
 - `src/admin/configLabels.ts` — human labels for every config path and validator message.
 - `src/pricing/paths.ts`, `diff.ts`, `referenceCases.ts` — the path grammar, the diff and

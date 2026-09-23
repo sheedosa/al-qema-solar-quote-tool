@@ -5,12 +5,12 @@ import { formatPhoneE164 } from '../logic'
 import type { EngineResult } from '../pricing/types'
 import type { FormData } from '../types'
 import { Auto, Dots, Ltr, Money, TdNum, tdNum, tdText, thNum, thText } from './controls'
-import { isDemoMode } from './demoClient'
+import { SHEET_URL } from '../config'
+import { backend, isDemoMode } from './backend'
 import { fmtDateTime, fmtNum, fmtRelative, plural } from './format'
 import { lookup, useAdminLang } from './i18n'
 import type { AdminStrings } from './strings'
 import type { Lang, Strings } from '../i18n'
-import { supabase } from './supabaseClient'
 import { useIsMobile } from './useIsMobile'
 
 type LeadRow = {
@@ -26,9 +26,11 @@ type LeadRow = {
   price_from: number | null
   is_custom: boolean
   confidence: string
+  /** Set by the team in the Google Sheet's Status column. */
+  status: string
 }
 
-type LeadDetail = { form: FormData; result: EngineResult }
+type LeadDetail = { form: FormData; result: EngineResult; status: string }
 
 const pill: React.CSSProperties = {
   fontSize: 11,
@@ -283,6 +285,11 @@ function LeadCard({
               {t.leads.lowConfidencePill}
             </span>
           )}
+          {row.status && (
+            <span style={{ ...pill, background: C.greenTint, color: C.green }} title={t.leads.statusHint}>
+              <Auto>{row.status}</Auto>
+            </span>
+          )}
         </div>
 
         {/*
@@ -339,16 +346,11 @@ function Detail({ lead }: { lead: LeadRow }) {
     let alive = true
     setDetail(null)
     setErr('')
-    supabase
-      .from('leads')
-      .select('form, result')
-      .eq('id', lead.id)
-      .single()
-      .then(({ data, error }) => {
-        if (!alive) return
-        if (error) setErr(error.message)
-        else setDetail(data as unknown as LeadDetail)
-      })
+    void backend.getLead(lead.id).then((res) => {
+      if (!alive) return
+      if (res.ok) setDetail(res.data)
+      else setErr(res.message)
+    })
     return () => {
       alive = false
     }
@@ -886,6 +888,11 @@ function LeadSheet({ lead, onClose }: { lead: LeadRow; onClose: () => void }) {
                     <>
                       {t.leads.ref} <Ltr>{lead.config_version}</Ltr>
                     </>,
+                    lead.status ? (
+                      <span title={t.leads.statusHint}>
+                        {t.leads.cols.status}: <Auto>{lead.status}</Auto>
+                      </span>
+                    ) : null,
                   ]}
                 />
               </div>
@@ -1000,18 +1007,11 @@ export function Submissions() {
   const triggerRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    supabase
-      .from('leads')
-      .select(
-        'id, created_at, name, whatsapp, city, property_type, lang, config_version, tier, price_from, is_custom, confidence',
-      )
-      .order('created_at', { ascending: false })
-      .limit(500)
-      .then(({ data, error }) => {
-        if (error) setErr(error.message)
-        else setRows((data as LeadRow[]) ?? [])
-        setLoading(false)
-      })
+    void backend.listLeads().then((res) => {
+      if (res.ok) setRows(res.data)
+      else setErr(res.message)
+      setLoading(false)
+    })
   }, [])
 
   const openLead = useCallback((row: LeadRow, trigger: HTMLElement) => {
@@ -1042,6 +1042,30 @@ export function Submissions() {
         <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, minWidth: 0 }}>
           {plural(rows.length, t.leads.count, lang)}
         </div>
+        <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
+        {SHEET_URL && !isDemoMode() && (
+          <a
+            className="admin-focusable"
+            href={SHEET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="open-sheet"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: 44,
+              padding: '0 16px',
+              borderRadius: 10,
+              background: C.green,
+              color: C.white,
+              fontSize: 13.5,
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            {t.leads.openSheet}
+          </a>
+        )}
         <button
           className="admin-focusable"
           // NOTE: always the full `rows`, never the sliced view.
@@ -1064,6 +1088,7 @@ export function Submissions() {
         >
           {t.leads.exportCsv}
         </button>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -1120,6 +1145,9 @@ export function Submissions() {
                 <th style={thText}>{t.leads.cols.tier}</th>
                 <th style={thNum}>{t.leads.cols.price}</th>
                 <th style={thText}>{t.leads.cols.confidence}</th>
+                <th style={thText} title={t.leads.statusHint}>
+                  {t.leads.cols.status}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1186,6 +1214,9 @@ export function Submissions() {
                     }}
                   >
                     {lookup(t.labels.confidence, r.confidence)}
+                  </td>
+                  <td style={{ ...tdText, whiteSpace: 'nowrap' }}>
+                    <Auto>{r.status}</Auto>
                   </td>
                 </tr>
               ))}

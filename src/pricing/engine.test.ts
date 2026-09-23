@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   canContinue,
@@ -15,6 +14,7 @@ import type { AcUnit, FormData } from '../types'
 import { PRICING_CONFIG } from './config'
 import { unpricedCommercialComponents } from './commercial'
 import { bomTotal, computeDemand, priceCustomBom, runEngine, toWaQuote } from './engine'
+import { makeHarness } from '../backend/appsScriptHarness'
 import { buildQuoteRecord, FIELD_LIMITS } from './persist'
 import { validatePricingConfig } from './validate'
 import type { Demand, NormalizedLoad, PricingConfig } from './types'
@@ -703,23 +703,27 @@ describe('20. constraintsBinding reports what actually blocked the match', () =>
   })
 })
 
-describe('21. seed.sql matches the bundled config', () => {
-  it('the SQL seed is byte-identical in content to src/pricing/config.ts', () => {
-    // seed.sql carries a hand-maintained copy of the config. Nothing used to
-    // assert they matched, so drift between what the code prices with and what
-    // a fresh database publishes was invisible.
-    const sql = readFileSync(new URL('../../supabase/seed.sql', import.meta.url), 'utf8')
-    const m = sql.match(/values \('[^']*', '(\{[\s\S]*\})'(?:::jsonb)?, (?:true|false)\)/)
-    expect(m, 'could not find the config JSON in seed.sql').not.toBeNull()
-    const seeded = JSON.parse(m![1].replace(/''/g, "'"))
-    expect(seeded).toEqual(JSON.parse(JSON.stringify(PRICING_CONFIG)))
+describe('21. The built-in config is what the first publish seeds', () => {
+  // With no version published yet, the site prices with the bundled config
+  // and the admin's first publish writes it to the sheet. It must pass the
+  // validator the site boots with, and survive the sheet unchanged.
+  it('passes the same validator the app boots with', () => {
+    const v = validatePricingConfig(PRICING_CONFIG)
+    expect(v.ok, v.ok ? '' : v.errors.join('; ')).toBe(true)
   })
 
-  it('the seeded config passes the same validator the app boots with', () => {
-    const sql = readFileSync(new URL('../../supabase/seed.sql', import.meta.url), 'utf8')
-    const m = sql.match(/values \('[^']*', '(\{[\s\S]*\})'(?:::jsonb)?, (?:true|false)\)/)
-    const v = validatePricingConfig(JSON.parse(m![1].replace(/''/g, "'")))
-    expect(v.ok, v.ok ? '' : v.errors.join('; ')).toBe(true)
+  it('round-trips through the backend byte for byte, apart from its new version', () => {
+    const h = makeHarness({ tokenInfo: () => ({ code: 200, body: {
+      aud: 'client-123.apps.googleusercontent.com', iss: 'accounts.google.com',
+      exp: String(Math.floor(Date.now() / 1000) + 600), email: 'a@b.ly', email_verified: 'true',
+    } }) })
+    h.setup()
+    h.addStaff('a@b.ly')
+    const token = h.post({ action: 'login', idToken: 'x' }).token
+    const { version } = h.post({ action: 'publishConfig', token, config: PRICING_CONFIG })
+    const served = h.get({ action: 'config' }).config
+    expect(served).toEqual({ ...JSON.parse(JSON.stringify(PRICING_CONFIG)), configVersion: version })
+    expect(validatePricingConfig(served).ok).toBe(true)
   })
 })
 

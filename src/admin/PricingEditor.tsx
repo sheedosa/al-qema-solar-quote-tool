@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { revealPath } from './pricing/useConfigDraft'
 import { useConfigDraft } from './pricing/useConfigDraft'
 import type { PricingConfig } from '../pricing/types'
+import { PRICING_CONFIG } from '../pricing/config'
 import { validatePricingConfig } from '../pricing/validate'
 import { C, cardStyle } from '../theme'
 import { labelForError } from './configLabels'
@@ -43,6 +44,8 @@ export function PricingEditor() {
   const [busy, setBusy] = useState(false)
   const [review, setReview] = useState<Review | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [unpublished, setUnpublished] = useState(false)
   const [section, setSection] = useState<AdvancedSection>('hardware')
   const isMobile = useIsMobile()
   const { t, opt } = useAdminLang()
@@ -50,12 +53,21 @@ export function PricingEditor() {
 
   const loadAll = useCallback(async () => {
     const rows = await listVersions()
+    if (rows === null) {
+      // Never fall back to the built-in prices here: offering to "publish"
+      // them over a history we simply failed to read would be destructive.
+      setLoadError(true)
+      return
+    }
+    setLoadError(false)
     setHistory(rows)
     const active = rows.find((r) => r.is_active)
-    if (active) {
-      const cfg = await fetchConfig(active.id)
-      if (cfg) d.load(cfg as PricingConfig)
-    }
+    const cfg = active ? await fetchConfig(active.id) : null
+    const checked = cfg ? validatePricingConfig(cfg) : null
+    // Nothing published yet: the site runs on the built-in prices, so those
+    // are what "live" means, and the first publish seeds the sheet.
+    d.load(checked?.ok ? checked.config : cfg ? (cfg as PricingConfig) : PRICING_CONFIG)
+    setUnpublished(!active)
   }, [d.load]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -96,21 +108,8 @@ export function PricingEditor() {
       await loadAll()
       return
     }
-    switch (res.stage) {
-      case 'invalid':
-        setOutcome({ tone: 'red', text: pr.outcome.invalid })
-        break
-      case 'insert':
-        setOutcome({ tone: 'red', text: pr.outcome.insertFailed, detail: res.message })
-        break
-      case 'clash':
-        setOutcome({ tone: 'red', text: pr.outcome.clash, detail: res.message })
-        break
-      case 'activate':
-        setOutcome({ tone: 'amber', text: pr.outcome.savedNotActive(res.version), detail: res.message })
-        await loadAll()
-        break
-    }
+    if (res.stage === 'invalid') setOutcome({ tone: 'red', text: pr.outcome.invalid })
+    else setOutcome({ tone: 'red', text: pr.outcome.failed, detail: res.message })
   }
 
   const openRollback = async (row: ConfigRow) => {
@@ -141,6 +140,21 @@ export function PricingEditor() {
     }
   }
 
+  if (loadError) {
+    return (
+      <div role="alert" style={{ ...cardStyle, borderInlineStart: `3px solid ${C.red}` }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.red, textAlign: 'start' }}>{pr.loadFailed}</div>
+        <button
+          type="button"
+          className="admin-focusable"
+          onClick={() => void loadAll()}
+          style={{ marginTop: 10, minHeight: 44, padding: '0 14px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.white, fontWeight: 600, cursor: 'pointer' }}
+        >
+          {pr.retry}
+        </button>
+      </div>
+    )
+  }
   if (!d.draft || !d.live) return <div style={{ color: C.muted, padding: 20 }}>{pr.loading}</div>
 
   const version = nextVersion(
@@ -161,6 +175,23 @@ export function PricingEditor() {
       <DraftProvider value={d}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <p style={{ fontSize: 13.5, color: C.muted, margin: 0, lineHeight: 1.6, textAlign: 'start' }}>{pr.intro}</p>
+
+          {unpublished && (
+            <div data-testid="unpublished" style={{ ...cardStyle, borderInlineStart: `3px solid ${C.amber}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.amber, textAlign: 'start' }}>{pr.unpublishedTitle}</div>
+              <p style={{ fontSize: 13, color: C.body, margin: '4px 0 10px', lineHeight: 1.5, textAlign: 'start' }}>{pr.unpublishedBody}</p>
+              <button
+                type="button"
+                className="admin-focusable"
+                data-testid="publish-builtin"
+                onClick={() => setReview({ kind: 'publish' })}
+                disabled={busy || d.errors.length > 0}
+                style={{ minHeight: 44, padding: '0 16px', borderRadius: 10, border: 'none', background: C.red, color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+              >
+                {pr.publishBuiltIn}
+              </button>
+            </div>
+          )}
 
           {outcome && (
             <div

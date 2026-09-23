@@ -1,35 +1,41 @@
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from '../config'
+import { callApi, isRetryable } from '../backend/api'
+import type { SubmitLeadRequest } from '../backend/protocol'
+import { leadSummary, leadToSheetRow } from '../backend/sheetRow'
 import type { FormData } from '../types'
 import type { EngineResult } from './types'
 
 /**
- * Lead persistence. Every completed quote is saved to the `leads` table so the
- * company sees the submission even if the customer never taps the WhatsApp
- * button. The anonymous key can only INSERT — reading requires an admin login.
+ * Lead persistence. Every completed quote is sent to the backend (a Google
+ * Sheet, see backend/) so the company sees the submission even if the
+ * customer never taps the WhatsApp button. Only the backend can read leads
+ * back — a staff sign-in is required.
  *
  * A lead is the entire commercial value of this tool, so a failed save is
  * retried, then queued to survive the tab closing, then flushed on the next
- * visit. Previously the response was never inspected at all: a 400 from a
- * database CHECK constraint is not a thrown exception, so an over-long name or
- * an oversized payload was dropped in silence, invisible to both the customer
- * and the company.
+ * visit. Each submission carries its own id and the backend ignores an id it
+ * has already stored, so a retry after a timeout that actually succeeded can
+ * never produce a second row.
  */
 
-/** Column limits from supabase/migrations/0001_init.sql, enforced client-side. */
+/** Field limits, mirrored by the backend's own checks (Code.gs). */
 export const FIELD_LIMITS = {
   name: 200,
   whatsapp: 40,
   city: 200,
   propertyType: 100,
-  /** Keeps the `form` JSON comfortably under the 200 KB payload_size check. */
+  /** Keeps a submission comfortably under the backend's 64 KB request cap. */
   notes: 2000,
 } as const
 
-const QUEUE_KEY = 'alqema.leads.pending.v1'
+const QUEUE_KEY = 'alqema.leads.pending.v2'
+/** Rows queued for the previous backend; their shape no longer fits. */
+const LEGACY_QUEUE_KEY = 'alqema.leads.pending.v1'
 const MAX_QUEUED = 5
 const RETRIES = 3
 
 export type QuoteRecord = {
+  /** Identity of this submission — the backend's duplicate check keys on it. */
+  id: string
   createdAt: string
   configVersion: string
   lang: 'ar' | 'en'
@@ -50,6 +56,7 @@ export function buildQuoteRecord(
   lang: 'ar' | 'en',
 ): QuoteRecord {
   return {
+    id: newId(),
     createdAt: new Date().toISOString(),
     configVersion: result.configVersion,
     lang,
@@ -66,61 +73,44 @@ export function buildQuoteRecord(
   }
 }
 
-/** The row shape the `leads` table expects. */
-function toRow(record: QuoteRecord) {
+/** A v4 UUID; `randomUUID` is missing on older phones' browsers. */
+function newId(): string {
+  const c = globalThis.crypto
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID()
+  const b = new Uint8Array(16)
+  if (c && typeof c.getRandomValues === 'function') c.getRandomValues(b)
+  else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256)
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
+/** The request the backend's `submitLead` expects. */
+export function toRequest(record: QuoteRecord): SubmitLeadRequest {
   return {
-    name: record.form.name.slice(0, FIELD_LIMITS.name),
-    whatsapp: record.form.whatsapp.slice(0, FIELD_LIMITS.whatsapp),
-    city: record.form.city.slice(0, FIELD_LIMITS.city),
-    property_type: record.form.propertyType.slice(0, FIELD_LIMITS.propertyType),
-    lang: record.lang,
-    config_version: record.configVersion,
-    tier: record.result.recommendedTier,
-    price_from: record.result.priceFrom,
-    is_custom: record.result.isCustom,
-    confidence: record.result.confidence,
-    form: record.form,
-    result: record.result,
+    action: 'submitLead',
+    id: record.id,
+    row: leadToSheetRow(record),
+    summary: leadSummary(record),
+    detail: { form: record.form, result: record.result },
   }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** One insert attempt. Returns true only when the row was actually accepted. */
-async function postLead(row: object): Promise<boolean> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10000)
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/leads', {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json',
-        // anon has no SELECT on leads — never ask for the row back.
-        Prefer: 'return=minimal',
-      },
-      signal: controller.signal,
-      body: JSON.stringify(row),
-    })
-    if (!res.ok) {
-      // A CHECK violation or an RLS refusal arrives as a status code, not a
-      // throw. Read the body so the reason is at least in the console.
-      const detail = await res.text().catch(() => '')
-      console.warn('[alqema] lead rejected', res.status, detail.slice(0, 300))
-      // 4xx other than 429 will fail identically however many times we retry.
-      return res.status === 429 || res.status >= 500 ? false : true
-    }
-    return true
-  } catch (err) {
-    console.warn('[alqema] lead save failed', err)
-    return false
-  } finally {
-    clearTimeout(timer)
-  }
+/**
+ * One delivery attempt. True when the lead is stored — or when retrying could
+ * never help (the backend refused its content), so it is not queued forever.
+ */
+async function postLead(req: SubmitLeadRequest): Promise<boolean> {
+  const res = await callApi('submitLead', req, 15000)
+  if (res.ok) return true
+  console.warn('[alqema] lead not saved', res.code, res.message)
+  return !isRetryable(res.code)
 }
 
-function readQueue(): object[] {
+function readQueue(): SubmitLeadRequest[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY)
     const parsed = raw ? JSON.parse(raw) : []
@@ -130,7 +120,7 @@ function readQueue(): object[] {
   }
 }
 
-function writeQueue(rows: object[]): void {
+function writeQueue(rows: SubmitLeadRequest[]): void {
   try {
     if (rows.length === 0) localStorage.removeItem(QUEUE_KEY)
     else localStorage.setItem(QUEUE_KEY, JSON.stringify(rows.slice(-MAX_QUEUED)))
@@ -146,9 +136,14 @@ function writeQueue(rows: object[]): void {
  * customer opens the page.
  */
 export async function flushPendingLeads(): Promise<void> {
+  try {
+    localStorage.removeItem(LEGACY_QUEUE_KEY)
+  } catch {
+    // blocked storage — nothing to clean
+  }
   const queued = readQueue()
   if (queued.length === 0) return
-  const stillPending: object[] = []
+  const stillPending: SubmitLeadRequest[] = []
   for (const row of queued) {
     if (!(await postLead(row))) stillPending.push(row)
   }
@@ -157,12 +152,13 @@ export async function flushPendingLeads(): Promise<void> {
 
 export const persistence: QuotePersistence = {
   async save(record) {
-    const row = toRow(record)
+    const req = toRequest(record)
     for (let attempt = 0; attempt < RETRIES; attempt++) {
-      if (await postLead(row)) return
+      if (await postLead(req)) return
       if (attempt < RETRIES - 1) await sleep(500 * 2 ** attempt)
     }
-    // Out of attempts: park it so the next visit can deliver it.
-    writeQueue([...readQueue(), row])
+    // Out of attempts: park it so the next visit can deliver it. Same id, so
+    // if an earlier attempt did land, the backend drops the resend.
+    writeQueue([...readQueue().filter((q) => q.id !== req.id), req])
   },
 }

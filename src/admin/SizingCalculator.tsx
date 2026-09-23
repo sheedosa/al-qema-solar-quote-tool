@@ -13,7 +13,8 @@ import { Auto, Field, Ltr, Money, Num, TdNum, label, sectionTitle, tdNum, tdText
 import { fmtNum, fmtPrice, plural } from './format'
 import { useAdminLang } from './i18n'
 import type { AdminStrings } from './strings'
-import { supabase } from './supabaseClient'
+import { validatePricingConfig } from '../pricing/validate'
+import { backend } from './backend'
 import { MobileContext, useIsMobile } from './useIsMobile'
 
 /**
@@ -96,14 +97,10 @@ export function SizingCalculator() {
     // the Pricing tab is used here immediately. The bundled config is the
     // fallback, not an error state — the calculator must work on day one.
     const load = async () => {
-      const { data } = await supabase
-        .from('pricing_configs')
-        .select('config')
-        .eq('is_active', true)
-        .limit(1)
-      const row = (data as { config: PricingConfig }[] | null)?.[0]
-      if (row?.config) {
-        setCfg(row.config)
+      const res = await backend.activeConfig()
+      const checked = res.ok && res.data.config ? validatePricingConfig(res.data.config) : null
+      if (checked?.ok) {
+        setCfg(checked.config)
         setSource('live')
       }
     }

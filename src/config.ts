@@ -10,8 +10,28 @@ export const SHOW_PRICE = true
 export const WA_NUMBER = '+218911139113'
 
 /**
- * Supabase backend (live pricing config + lead capture + admin panel).
- * The publishable key is safe to ship — row-level security is the boundary.
+ * The backend: one Google Sheet with an Apps Script deployed as a web app
+ * (backend/google-apps-script/). All three values are public — the script
+ * decides who may do what, not these strings.
+ *
+ * Fill them in from the setup guide (backend/README.md, step 6) before
+ * deploying. While SHEETS_API_URL is empty the site prices with the built-in
+ * config and keeps submissions queued on the customer's device.
  */
-export const SUPABASE_URL = 'https://ysfmlshyfooxqnilyuip.supabase.co'
-export const SUPABASE_ANON_KEY = 'sb_publishable_aPFkaTRZLDTnI7S5uYha7g_dSWOp8Jd'
+/** The web app URL, ending in /exec. */
+const SHEETS_API_URL_VALUE = ''
+/** The OAuth web client ID staff sign in with (…apps.googleusercontent.com). */
+const GOOGLE_CLIENT_ID_VALUE = ''
+
+// A local `.env` (VITE_SHEETS_API_URL / VITE_GOOGLE_CLIENT_ID) overrides the
+// two above — for a test copy of the sheet, or the browser checks.
+export const SHEETS_API_URL: string = import.meta.env.VITE_SHEETS_API_URL || SHEETS_API_URL_VALUE
+export const GOOGLE_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_VALUE
+/** The spreadsheet itself, for the admin panel's "Open Google Sheet" button. */
+export const SHEET_URL = ''
+
+/**
+ * The language of the values written to the Leads sheet. Headers are always
+ * Arabic / English; values follow this so the team can sort and filter.
+ */
+export const SHEET_LANG: 'ar' | 'en' = 'ar'
