@@ -1,8 +1,8 @@
 /**
  * One submission as a row of the team's Leads sheet: readable values in the
  * sheet's language, built from the same labels the customer saw on the
- * review screen. The keys must match LEAD_COLUMNS in Code.gs; a test pins
- * that, so client and script cannot drift.
+ * review screen. The keys must match CLIENT_KEYS in Code.gs (the script owns
+ * the column order); a test pins that, so client and script cannot drift.
  */
 import { SHEET_LANG } from '../config'
 import { BUNDLES } from '../i18n'
@@ -24,6 +24,9 @@ export const LEAD_COLUMN_KEYS = [
   'priceLyd',
   'sizingMethod',
   'confidence',
+  'inverter',
+  'panels',
+  'battery',
   'dailyCuts',
   'acs',
   'fridge',
@@ -55,6 +58,8 @@ const SHEET_WORDS = {
     } satisfies Record<SizingMethod, string>,
     confidence: { high: 'عالية', low: 'منخفضة' } as Record<string, string>,
     other: 'أخرى — ',
+    chemistry: { liquid: 'سائلة', lithium: 'ليثيوم' },
+    usable: 'قابلة للاستخدام',
   },
   en: {
     lang: { ar: 'Arabic', en: 'English' },
@@ -66,6 +71,8 @@ const SHEET_WORDS = {
     } satisfies Record<SizingMethod, string>,
     confidence: { high: 'High', low: 'Low' } as Record<string, string>,
     other: 'Other — ',
+    chemistry: { liquid: 'liquid', lithium: 'lithium' },
+    usable: 'usable',
   },
 }
 
@@ -86,6 +93,8 @@ export function leadToSheetRow(record: QuoteRecord): Record<LeadColumnKey, strin
   const acs = cooling.filter((x) => x.k.startsWith(R.acPrefix + ' '))
   const appliances = rows(4).filter((x) => x.k !== R.keys.lighting)
 
+  const num = (n: number, frac = 1) => n.toLocaleString('en-US', { maximumFractionDigits: frac })
+  const sp = r.specs
   return {
     submittedAt: '',
     reference: record.id,
@@ -98,6 +107,9 @@ export function leadToSheetRow(record: QuoteRecord): Record<LeadColumnKey, strin
     priceLyd: r.priceFrom ?? '',
     sizingMethod: w.method[r.sizingMethod],
     confidence: w.confidence[r.confidence] ?? r.confidence,
+    inverter: sp ? `${num(sp.inverter.kva)} kVA` : '',
+    panels: sp ? `${num(sp.panels.count, 0)} × ${num(sp.panels.watts, 0)} W = ${num(sp.panels.kwp, 2)} kWp` : '',
+    battery: sp ? `${num(sp.battery.usableKwh)} kWh ${w.usable} (${w.chemistry[sp.battery.chemistry]})` : '',
     dailyCuts: value(2, R.keys.dailyCuts),
     acs: [String(f.acUnits.length), ...acs.map((x) => clean(x.k + ': ' + x.v))].join(' | '),
     fridge: value(3, R.keys.fridge),

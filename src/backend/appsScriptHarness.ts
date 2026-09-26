@@ -12,6 +12,7 @@ const CODE_PATH = new URL('../../backend/google-apps-script/Code.gs', import.met
 export const CODE = readFileSync(CODE_PATH, 'utf8')
 
 type Cell = unknown
+type FakeRange = { getValues(): Cell[][]; setValues(v: Cell[][]): FakeRange }
 
 /** A permissive stand-in for any Sheets object the tests do not care about. */
 function loose(): unknown {
@@ -23,12 +24,28 @@ function loose(): unknown {
   return p
 }
 
+/** Any member the fake does not define answers with a permissive stand-in. */
+function lenient<T extends object>(obj: T): T {
+  return new Proxy(obj, {
+    get: (t, k, r) => (k in t ? Reflect.get(t, k, r) : typeof k === 'symbol' ? undefined : () => loose()),
+  })
+}
+
 export class FakeSheet {
   cells: Cell[][] = []
   hidden = false
-  constructor(public name: string) {}
+  maxCols = 26
+  constructor(
+    public name: string,
+    private onRename: (from: string, to: string) => void = () => {},
+  ) {}
   getName() {
     return this.name
+  }
+  setName(n: string) {
+    this.onRename(this.name, n)
+    this.name = n
+    return this
   }
   getLastRow() {
     for (let r = this.cells.length - 1; r >= 0; r--) {
@@ -40,13 +57,14 @@ export class FakeSheet {
     return 1000
   }
   getMaxColumns() {
-    return 26
+    return this.maxCols
   }
-  getRange(row: number, col: number, rows = 1, cols = 1) {
+  getRange(row: number | string, col = 1, rows = 1, cols = 1): FakeRange {
+    if (typeof row === 'string') return loose() as FakeRange
     if (row < 1 || col < 1 || rows < 1 || cols < 1) throw new Error(`bad range ${row},${col},${rows},${cols}`)
-    if (col + cols - 1 > 26) throw new Error('range outside the sheet')
+    if (col + cols - 1 > this.maxCols) throw new Error('range outside the sheet')
     const sheet = this
-    const range = {
+    const range: FakeRange = {
       getValues: () =>
         Array.from({ length: rows }, (_, i) =>
           Array.from({ length: cols }, (_, j) => {
@@ -60,13 +78,11 @@ export class FakeSheet {
           const line = (sheet.cells[row - 1 + i] ??= [])
           r.forEach((v, j) => (line[col - 1 + j] = v))
         })
-        return range
+        return self
       },
-      setNumberFormat: () => range,
-      setFontWeight: () => range,
-      setDataValidation: () => range,
     }
-    return range
+    const self = lenient(range)
+    return self
   }
   hideSheet() {
     this.hidden = true
@@ -74,30 +90,40 @@ export class FakeSheet {
   getProtections() {
     return []
   }
-  protect() {
-    return loose()
+  getBandings() {
+    return []
   }
-  setRightToLeft() {}
-  setFrozenRows() {}
-  insertColumnsAfter() {}
+  getFilter() {
+    return null
+  }
+  getColumnGroupDepth() {
+    return 0
+  }
+  insertColumnsAfter(_after: number, n: number) {
+    this.maxCols += n
+  }
 }
 
 export type Harness = ReturnType<typeof makeHarness>
 
 export function makeHarness(opts: { clientId?: string | null; tokenInfo?: (idToken: string) => { code: number; body: unknown } } = {}) {
   const sheets = new Map<string, FakeSheet>()
-  const ss = {
+  const rename = (from: string, to: string) => {
+    const s = sheets.get(from)
+    sheets.delete(from)
+    if (s) sheets.set(to, s)
+  }
+  const insert = (n: string) => {
+    const s = lenient(new FakeSheet(n, rename))
+    sheets.set(n, s)
+    return s
+  }
+  const ss = lenient({
     getSheetByName: (n: string) => sheets.get(n) ?? null,
-    insertSheet: (n: string) => {
-      const s = new FakeSheet(n)
-      sheets.set(n, s)
-      return s
-    },
+    insertSheet: insert,
     getSheets: () => [...sheets.values()],
     deleteSheet: (s: FakeSheet) => sheets.delete(s.name),
-    setActiveSheet: () => {},
-    setSpreadsheetTimeZone: () => {},
-  }
+  })
   const cache = new Map<string, string>()
   const props = new Map<string, string>()
   if (opts.clientId !== null) props.set('GOOGLE_CLIENT_ID', opts.clientId ?? 'client-123.apps.googleusercontent.com')
@@ -106,11 +132,10 @@ export function makeHarness(opts: { clientId?: string | null; tokenInfo?: (idTok
   const toBuf = (v: string | number[]) => (typeof v === 'string' ? Buffer.from(v, 'utf8') : Buffer.from(v.map((x) => x & 255)))
 
   const globals = {
-    SpreadsheetApp: {
+    SpreadsheetApp: lenient({
       getActiveSpreadsheet: () => ss,
-      newDataValidation: () => loose(),
       ProtectionType: { SHEET: 'SHEET' },
-    },
+    }),
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
     CacheService: {
       getScriptCache: () => ({
@@ -152,6 +177,7 @@ export function makeHarness(opts: { clientId?: string | null; tokenInfo?: (idTok
   runInContext(CODE, ctx, { filename: 'Code.gs' })
   const g = ctx as unknown as Record<string, (...a: unknown[]) => unknown>
 
+  const names = () => runInContext('SHEETS', ctx) as Record<string, string>
   const unwrap = (out: unknown) => JSON.parse((out as { text: string }).text)
   return {
     sheets,
@@ -163,9 +189,12 @@ export function makeHarness(opts: { clientId?: string | null; tokenInfo?: (idTok
     get: (parameter: Record<string, string>) => unwrap(g.doGet({ parameter })),
     /** Read a top-level `var` from the script. */
     value: <T>(name: string) => runInContext(name, ctx) as T,
-    sheet: (n: string) => sheets.get(n)!,
+    /** A tab by its short key: leads, data, staff, pricing, log, guide, summary. */
+    sheet: (key: string) => sheets.get(names()[key] ?? key)!,
+    /** 1-based Leads column of a key. */
+    col: (key: string) => (runInContext('colOf_', ctx) as (k: string) => number)(key),
     addStaff: (email: string) => {
-      const s = sheets.get('Staff')!
+      const s = sheets.get(names().staff)!
       s.getRange(s.getLastRow() + 1, 1, 1, 1).setValues([[email]])
     },
   }

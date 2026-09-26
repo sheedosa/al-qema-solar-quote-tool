@@ -13,14 +13,20 @@
  * request with no CORS preflight. Every answer is `{ ok: true, … }` or
  * `{ ok: false, code, message }` — Apps Script always replies HTTP 200.
  *
- * Tabs (created by `setup`):
- *   Leads     the team's working sheet: one row per submission, plus Status
- *             and Team notes columns the team edits freely.
- *   LeadData  hidden + protected: the full form and result JSON behind each
- *             lead, for the admin panel's detail view.
- *   Pricing   protected: every published pricing version, one active.
- *   Staff     protected: the Google emails allowed into the admin panel.
- *   Log       rejected requests and errors, for diagnosis. No customer data.
+ * Tabs (created by `setup`), in this order:
+ *   دليل الاستخدام Guide   how to use the sheet, in Arabic and English.
+ *   ملخص Summary           live counts: leads this week, by status, overdue
+ *                          follow-ups, sales value, by package.
+ *   الطلبات Leads          the team's working sheet. One row per submission,
+ *                          in four colour-coded sections: the customer and
+ *                          quote, the team's follow-up (Status, Assigned to,
+ *                          Follow-up date, Team notes), the quoted system,
+ *                          and the customer's answers.
+ *   الموظفون Staff         the Google emails allowed into the admin panel.
+ *   الأسعار Pricing        every published pricing version, one active.
+ *   السجل Log              rejected requests and errors. No customer data.
+ *   LeadData               hidden: the full form and result behind each lead,
+ *                          for the admin panel's detail view.
  *
  * Script properties: GOOGLE_CLIENT_ID (the OAuth web client's ID, set by
  * hand) and TOKEN_SECRET (created by `setup`, never shown to anyone).
@@ -28,50 +34,103 @@
 
 /* ------------------------------------------------------------ constants */
 
-var SHEETS = { leads: 'Leads', data: 'LeadData', pricing: 'Pricing', staff: 'Staff', log: 'Log' }
+var SHEETS = {
+  guide: 'دليل الاستخدام Guide',
+  summary: 'ملخص Summary',
+  leads: 'الطلبات Leads',
+  staff: 'الموظفون Staff',
+  pricing: 'الأسعار Pricing',
+  log: 'السجل Log',
+  data: 'LeadData',
+}
+/** Names used by the first version of this script; `setup` renames them. */
+var OLD_NAMES = { leads: 'Leads', staff: 'Staff', pricing: 'Pricing', log: 'Log' }
 
 /**
- * The Leads columns, in order: [key, header]. The quote tool sends a row as
- * `{ key: value }`; unknown keys are ignored, missing ones left blank. A test
- * pins the client's key set to this list.
+ * The Leads sheet, column by column, in order:
+ *   [key, Arabic header, English header, width px, section, kind, note]
+ * Sections colour the header; kinds decide format and validation. `team`
+ * columns are the team's to edit; every other column is written once, by
+ * the script, when the customer submits.
  */
-var LEAD_COLUMNS = [
-  ['submittedAt', 'وقت الإرسال / Submitted'],
-  ['reference', 'المرجع / Reference'],
-  ['name', 'الاسم / Name'],
-  ['whatsapp', 'واتساب / WhatsApp'],
-  ['city', 'المدينة / City'],
-  ['property', 'نوع العقار / Property'],
-  ['language', 'لغة العميل / Language'],
-  ['package', 'الباقة / Package'],
-  ['priceLyd', 'السعر (د.ل) / Price (LYD)'],
-  ['sizingMethod', 'طريقة التحجيم / Sizing method'],
-  ['confidence', 'الثقة / Confidence'],
-  ['dailyCuts', 'الانقطاع اليومي / Daily cuts'],
-  ['acs', 'المكيفات / ACs'],
-  ['fridge', 'الثلاجة / Fridge'],
-  ['freezer', 'الفريزر / Freezer'],
-  ['lighting', 'الإنارة / Lighting'],
-  ['appliances', 'الأجهزة / Appliances'],
-  ['systemType', 'نوع النظام / System type'],
-  ['cutPriority', 'الأولوية عند الانقطاع / Cut priority'],
-  ['roof', 'السطح / Roof'],
-  ['shade', 'الظل / Shade'],
-  ['customerNotes', 'ملاحظات العميل / Customer notes'],
-  ['warnings', 'تنبيهات / Warnings'],
-  ['pricingVersion', 'إصدار الأسعار / Pricing version'],
+var COLUMNS = [
+  ['submittedAt', 'وقت الإرسال', 'Submitted', 125, 'main', 'date', 'وقت وصول الطلب (توقيت ليبيا).'],
+  ['name', 'الاسم', 'Name', 150, 'main', 'text', 'اسم العميل كما كتبه.'],
+  ['whatsapp', 'واتساب', 'WhatsApp', 135, 'main', 'phone', 'اضغط على الرقم لفتح محادثة واتساب مع العميل.'],
+  ['city', 'المدينة', 'City', 105, 'main', 'text', ''],
+  ['property', 'نوع العقار', 'Property', 105, 'main', 'text', ''],
+  ['package', 'الباقة', 'Package', 75, 'main', 'center', 'الباقة المقترحة (S إلى XXL) أو «مخصّص» عندما لا تناسب أي باقة.'],
+  ['priceLyd', 'السعر', 'Price', 105, 'main', 'money', 'السعر الذي رآه العميل، بالدينار الليبي.'],
+  ['status', 'الحالة', 'Status', 115, 'team', 'status', 'اختر من القائمة: جديد، تم التواصل، أُرسل العرض، تم البيع، لم يتم.'],
+  ['assignedTo', 'المسؤول', 'Assigned to', 115, 'team', 'assignee', 'من يتابع هذا العميل. الأسماء تأتي من ورقة الموظفين.'],
+  ['followUp', 'موعد المتابعة', 'Follow-up', 105, 'team', 'followup', 'تاريخ المتابعة القادمة. يظهر باللون الأحمر عندما يحين موعده.'],
+  ['teamNotes', 'ملاحظات الفريق', 'Team notes', 220, 'team', 'wrap', 'أي ملاحظات داخلية للفريق.'],
+  ['inverter', 'الإنفرتر', 'Inverter', 95, 'system', 'text', 'حجم الإنفرتر في النظام المقترح.'],
+  ['panels', 'الألواح', 'Panels', 150, 'system', 'text', 'عدد الألواح × قدرتها = إجمالي القدرة.'],
+  ['battery', 'البطاريات', 'Battery', 150, 'system', 'text', 'السعة القابلة للاستخدام ونوع البطارية.'],
+  ['sizingMethod', 'طريقة التسعير', 'Pricing method', 150, 'system', 'text', 'باقة قياسية، أو نظام مخصّص محسوب من أسعار المكوّنات.'],
+  ['confidence', 'دقة التقدير', 'Confidence', 85, 'system', 'center', '«منخفضة» تعني أن العميل لم يعرف بعض التفاصيل واستُخدمت قيم نموذجية — تأكّد منها عند التواصل.'],
+  ['warnings', 'تنبيهات', 'Warnings', 220, 'system', 'wrap', 'ما عُرض على العميل من ملاحظات.'],
+  ['dailyCuts', 'الانقطاع اليومي', 'Daily power cuts', 105, 'answers', 'text', ''],
+  ['acs', 'المكيفات', 'ACs', 220, 'answers', 'wrap', 'العدد، ثم كل مكيف: الحجم والساعات.'],
+  ['fridge', 'الثلاجة', 'Fridge', 85, 'answers', 'text', ''],
+  ['freezer', 'الفريزر', 'Freezer', 85, 'answers', 'text', ''],
+  ['lighting', 'الإنارة', 'Lighting', 135, 'answers', 'text', ''],
+  ['appliances', 'الأجهزة', 'Appliances', 220, 'answers', 'wrap', ''],
+  ['systemType', 'نوع النظام', 'System type', 95, 'answers', 'text', ''],
+  ['cutPriority', 'الأولوية عند الانقطاع', 'Cut priority', 150, 'answers', 'text', ''],
+  ['roof', 'مساحة السطح', 'Roof space', 95, 'answers', 'text', ''],
+  ['shade', 'الظل', 'Shade', 65, 'answers', 'center', ''],
+  ['customerNotes', 'ملاحظات العميل', 'Customer notes', 220, 'answers', 'wrap', ''],
+  ['language', 'لغة العميل', 'Language', 85, 'answers', 'text', ''],
+  ['reference', 'رقم المرجع', 'Reference', 270, 'ref', 'text', 'معرّف الطلب. لا تعدّله.'],
+  ['pricingVersion', 'إصدار الأسعار', 'Pricing version', 165, 'ref', 'text', 'إصدار الأسعار الذي حُسب به العرض.'],
 ]
-/** Edited by the team in the sheet; the script only ever writes their defaults. */
-var TEAM_COLUMNS = [
-  ['status', 'الحالة / Status'],
-  ['teamNotes', 'ملاحظات الفريق / Team notes'],
-]
+var TEAM_KEYS = ['status', 'assignedTo', 'followUp', 'teamNotes']
+/** The keys the quote tool sends. A test pins the site's list to this one. */
+var CLIENT_KEYS = COLUMNS.map(function (c) {
+  return c[0]
+}).filter(function (k) {
+  return TEAM_KEYS.indexOf(k) < 0
+})
 var STATUS_VALUES = ['جديد', 'تم التواصل', 'أُرسل العرض', 'تم البيع', 'لم يتم']
+/** [background, text] per status, and per header section. */
+var STATUS_COLORS = {
+  'جديد': ['#E8F0FE', '#1A56DB'],
+  'تم التواصل': ['#FEF3C7', '#B45309'],
+  'أُرسل العرض': ['#EDE9FE', '#6D28D9'],
+  'تم البيع': ['#E7F3ED', '#1E7E4F'],
+  'لم يتم': ['#F1F3F5', '#6C757D'],
+}
+var SECTION_COLORS = {
+  main: ['#BD202F', '#FFFFFF'],
+  team: ['#1E7E4F', '#FFFFFF'],
+  system: ['#2D2D2D', '#FFFFFF'],
+  answers: ['#6C757D', '#FFFFFF'],
+  ref: ['#CED4DA', '#2D2D2D'],
+}
 
 var DATA_HEADERS = ['id', 'createdAt', 'summary', 'detail…']
-var PRICING_HEADERS = ['version', 'createdAt', 'createdBy', 'active', 'config…']
-var STAFF_HEADERS = ['email', 'name (optional)']
-var LOG_HEADERS = ['time', 'action', 'code', 'message']
+var PRICING_HEADERS = ['الإصدار\nVersion', 'وقت النشر\nPublished', 'نشره\nPublished by', 'ساري\nActive', 'الإعدادات\nConfig (managed by the admin panel)']
+var STAFF_HEADERS = ['البريد الإلكتروني (Google)\nGoogle email', 'الاسم\nName']
+var LOG_HEADERS = ['الوقت\nTime', 'العملية\nAction', 'الرمز\nCode', 'الرسالة\nMessage']
+
+/** 1-based column of a Leads key. */
+function colOf_(key) {
+  for (var i = 0; i < COLUMNS.length; i++) if (COLUMNS[i][0] === key) return i + 1
+  throw new Error('No column ' + key)
+}
+
+/** A1 letter(s) of a 1-based column. */
+function letter_(n) {
+  var s = ''
+  while (n > 0) {
+    var m = (n - 1) % 26
+    s = String.fromCharCode(65 + m) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
 
 /** A cell holds at most 50,000 characters; JSON is split across cells below that. */
 var CHUNK = 45000
@@ -167,8 +226,8 @@ function submitLead_(body) {
   if (!isObject_(row) || !isObject_(summary) || !isObject_(detail)) throw err_('invalid', 'Missing row, summary or detail')
 
   var values = {}
-  for (var i = 0; i < LEAD_COLUMNS.length; i++) {
-    var key = LEAD_COLUMNS[i][0]
+  for (var i = 0; i < CLIENT_KEYS.length; i++) {
+    var key = CLIENT_KEYS[i]
     var v = row[key]
     if (v === undefined || v === null) v = ''
     if (typeof v !== 'string' && typeof v !== 'number') throw err_('invalid', key + ' has the wrong type')
@@ -200,9 +259,15 @@ function submitLead_(body) {
     values.reference = id
 
     var leads = sheet_(SHEETS.leads)
-    var line = []
-    for (var c = 0; c < LEAD_COLUMNS.length; c++) line.push(safe_(values[LEAD_COLUMNS[c][0]]))
-    line.push(STATUS_VALUES[0], '')
+    var line = COLUMNS.map(function (col) {
+      var k = col[0]
+      if (k === 'status') return STATUS_VALUES[0]
+      if (TEAM_KEYS.indexOf(k) >= 0) return ''
+      // Built here from a number already checked against PHONE_RE, so this
+      // is the one formula the script writes on purpose: a tap opens WhatsApp.
+      if (k === 'whatsapp') return '=HYPERLINK("https://wa.me/' + values.whatsapp.slice(1) + '","' + values.whatsapp + '")'
+      return safe_(values[k])
+    })
     leads.getRange(leads.getLastRow() + 1, 1, 1, line.length).setValues([line])
 
     var cleanSummary = pick_(summary, [
@@ -256,11 +321,9 @@ function statusById_() {
   var last = leads.getLastRow()
   var map = {}
   if (last < 2) return map
-  var refCol = 2
-  var statusCol = LEAD_COLUMNS.length + 1
-  var width = statusCol - refCol + 1
-  var rows = leads.getRange(2, refCol, last - 1, width).getValues()
-  for (var i = 0; i < rows.length; i++) map[String(rows[i][0])] = String(rows[i][width - 1] || '')
+  var ids = leads.getRange(2, colOf_('reference'), last - 1, 1).getValues()
+  var status = leads.getRange(2, colOf_('status'), last - 1, 1).getValues()
+  for (var i = 0; i < ids.length; i++) map[String(ids[i][0])] = String(status[i][0] || '')
   return map
 }
 
@@ -457,37 +520,37 @@ function isStaff_(email) {
 
 /**
  * Run once from the editor (select `setup`, press Run, allow access). Safe to
- * run again: it only creates what is missing and re-applies formatting.
+ * run again: it creates what is missing and re-applies the layout. It never
+ * deletes a submission — if the Leads tab already holds rows in a different
+ * column layout, it stops and says so.
  */
 function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet()
   ss.setSpreadsheetTimeZone('Africa/Tripoli')
-  var headers = LEAD_COLUMNS.concat(TEAM_COLUMNS).map(function (c) {
-    return c[1]
-  })
-
-  var leads = ensureSheet_(ss, SHEETS.leads, headers)
-  leads.setRightToLeft(true)
-  var col = function (key) {
-    for (var i = 0; i < LEAD_COLUMNS.length; i++) if (LEAD_COLUMNS[i][0] === key) return i + 1
-    return -1
+  // Tabs made by the first version of this script keep their data.
+  for (var k in OLD_NAMES) {
+    var old = ss.getSheetByName(OLD_NAMES[k])
+    if (old && !ss.getSheetByName(SHEETS[k])) old.setName(SHEETS[k])
   }
-  // Plain text everywhere a customer typed or a label goes, so nothing is
-  // ever read as a formula, a date or a number ("+218…" included).
-  leads.getRange(2, 2, leads.getMaxRows() - 1, headers.length - 1).setNumberFormat('@')
-  leads.getRange(2, col('submittedAt'), leads.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd hh:mm')
-  leads.getRange(2, col('priceLyd'), leads.getMaxRows() - 1, 1).setNumberFormat('#,##0')
-  var statusRule = SpreadsheetApp.newDataValidation().requireValueInList(STATUS_VALUES, true).setAllowInvalid(false).build()
-  leads.getRange(2, LEAD_COLUMNS.length + 1, leads.getMaxRows() - 1, 1).setDataValidation(statusRule)
 
-  var data = ensureSheet_(ss, SHEETS.data, DATA_HEADERS)
-  var pricing = ensureSheet_(ss, SHEETS.pricing, PRICING_HEADERS)
-  var staff = ensureSheet_(ss, SHEETS.staff, STAFF_HEADERS)
-  var log = ensureSheet_(ss, SHEETS.log, LOG_HEADERS)
-  ;[data, pricing, staff, log].forEach(protect_)
+  var staff = setupStaff_(ss)
+  var leads = setupLeads_(ss, staff)
+  setupPricing_(ss)
+  setupLog_(ss)
+  var data = plainSheet_(ss, SHEETS.data, DATA_HEADERS)
+  protect_(data)
+  setupSummary_(ss)
+  setupGuide_(ss)
+
+  // Tab order: Guide, Summary, Leads, Staff, Pricing, Log. LeadData is left
+  // out: activating a hidden tab would show it again.
+  var order = [SHEETS.guide, SHEETS.summary, SHEETS.leads, SHEETS.staff, SHEETS.pricing, SHEETS.log]
+  for (var i = 0; i < order.length; i++) {
+    ss.setActiveSheet(ss.getSheetByName(order[i]))
+    ss.moveActiveSheet(i + 1)
+  }
   data.hideSheet()
-
-  var blank = ss.getSheetByName('Sheet1') || ss.getSheetByName('ورقة1')
+  var blank = ss.getSheetByName('Sheet1') || ss.getSheetByName('ورقة1') || ss.getSheetByName('الورقة1')
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank)
   ss.setActiveSheet(leads)
 
@@ -499,10 +562,287 @@ function setup() {
   Logger.log('Al Qema backend is set up.' + missing)
 }
 
-function ensureSheet_(ss, name, headers) {
+function setupLeads_(ss, staff) {
+  var sh = ss.getSheetByName(SHEETS.leads) || ss.insertSheet(SHEETS.leads)
+  var n = COLUMNS.length
+  var headers = COLUMNS.map(function (c) {
+    return c[1] + '\n' + c[2]
+  })
+  // Widen first: a new tab has 26 columns and the layout needs more.
+  if (sh.getMaxColumns() < n) sh.insertColumnsAfter(sh.getMaxColumns(), n - sh.getMaxColumns())
+  if (sh.getLastRow() > 1) {
+    var current = sh.getRange(1, 1, 1, n).getValues()[0]
+    for (var h = 0; h < n; h++) {
+      if (String(current[h]) !== headers[h]) {
+        throw new Error(
+          'The Leads tab already holds submissions in a different column layout. ' +
+            'Rename that tab (for example to "Leads old"), run setup again, then copy the rows across.',
+        )
+      }
+    }
+  }
+  var rows = sh.getMaxRows() - 1
+  var body = sh.getRange(2, 1, rows, n)
+  // Start clean, so a second run never stacks rules on top of the first.
+  body.clearDataValidations()
+  sh.clearConditionalFormatRules()
+  sh.getBandings().forEach(function (b) {
+    b.remove()
+  })
+  sh.getProtections(SpreadsheetApp.ProtectionType.SHEET).forEach(function (p) {
+    p.remove()
+  })
+
+  sh.setRightToLeft(true)
+  sh.setTabColor(SECTION_COLORS.main[0])
+
+  // Header: two lines (Arabic over English), coloured by section, with a
+  // note on each explaining the column.
+  var head = sh.getRange(1, 1, 1, n)
+  head.setValues([headers]).setFontWeight('bold').setFontSize(10).setWrap(true)
+  head.setVerticalAlignment('middle').setHorizontalAlignment('center')
+  sh.setRowHeight(1, 46)
+  for (var i = 0; i < n; i++) {
+    var c = COLUMNS[i]
+    var cell = sh.getRange(1, i + 1)
+    cell.setBackground(SECTION_COLORS[c[4]][0]).setFontColor(SECTION_COLORS[c[4]][1])
+    cell.setNote(c[6] || '')
+    sh.setColumnWidth(i + 1, c[3])
+  }
+  sh.setFrozenRows(1)
+  sh.setFrozenColumns(2)
+
+  // Body: readable defaults, then one format per kind of column.
+  body.setVerticalAlignment('top').setFontSize(10).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+  // Alternating row shades on the body only, so the header keeps its colours.
+  body.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false)
+  for (var j = 0; j < n; j++) {
+    var kind = COLUMNS[j][5]
+    var col = sh.getRange(2, j + 1, rows, 1)
+    if (kind === 'date') col.setNumberFormat('yyyy-mm-dd  hh:mm')
+    else if (kind === 'money') col.setNumberFormat('#,##0 "د.ل"').setFontWeight('bold')
+    else if (kind === 'followup') col.setNumberFormat('yyyy-mm-dd').setHorizontalAlignment('center')
+    else if (kind === 'phone') col.setNumberFormat('@')
+    else col.setNumberFormat('@')
+    if (kind === 'wrap') col.setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP)
+    if (kind === 'center' || kind === 'status') col.setHorizontalAlignment('center')
+  }
+  // A phone cell holds the HYPERLINK formula the script writes; plain-text
+  // format would show the formula instead of the number.
+  sh.getRange(2, colOf_('whatsapp'), rows, 1).setNumberFormat('General')
+  sh.getRange(2, colOf_('name'), rows, 1).setFontWeight('bold')
+
+  // Team columns: dropdowns and a date picker.
+  var statusCol = colOf_('status')
+  sh.getRange(2, statusCol, rows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(STATUS_VALUES, true).setAllowInvalid(false)
+      .setHelpText('اختر الحالة من القائمة.').build(),
+  ).setFontWeight('bold')
+  sh.getRange(2, colOf_('assignedTo'), rows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInRange(staff.getRange('B2:B'), true).setAllowInvalid(true)
+      .setHelpText('الأسماء من ورقة الموظفين (عمود الاسم).').build(),
+  )
+  sh.getRange(2, colOf_('followUp'), rows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false)
+      .setHelpText('اختر تاريخًا (انقر مرتين لفتح التقويم).').build(),
+  )
+
+  // Colours: each status its own; an overdue follow-up in red.
+  var rules = []
+  var statusRange = sh.getRange(2, statusCol, rows, 1)
+  for (var st in STATUS_COLORS) {
+    rules.push(
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo(st)
+        .setBackground(STATUS_COLORS[st][0]).setFontColor(STATUS_COLORS[st][1])
+        .setRanges([statusRange]).build(),
+    )
+  }
+  var f = letter_(colOf_('followUp'))
+  var s = letter_(statusCol)
+  rules.push(
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenFormulaSatisfied('=AND($' + f + '2<>"",$' + f + '2<=TODAY(),$' + s + '2<>"تم البيع",$' + s + '2<>"لم يتم")')
+      .setBackground('#FBEAEC').setFontColor('#BD202F').setBold(true)
+      .setRanges([sh.getRange(2, colOf_('followUp'), rows, 1)]).build(),
+  )
+  sh.setConditionalFormatRules(rules)
+
+  // Filter on the header, so anyone can sort and filter by clicking it.
+  if (!sh.getFilter()) sh.getRange(1, 1, rows + 1, n).createFilter()
+
+  // The reference columns fold away behind a "+" above the sheet.
+  try {
+    var refFrom = colOf_('reference')
+    var refRange = sh.getRange(1, refFrom, 1, n - refFrom + 1)
+    if (sh.getColumnGroupDepth(refFrom) === 0) refRange.shiftColumnGroupDepth(1)
+    sh.getColumnGroup(refFrom, 1).collapse()
+  } catch (ignored) {
+    // Column groups are cosmetic; an older Sheets build without them is fine.
+  }
+
+  // Only the team columns are meant to be typed in. Everything else shows a
+  // warning first, so an accidental edit is caught but nobody is locked out.
+  var p = sh.protect().setDescription('بيانات العميل تُكتب تلقائيًا — عدّل أعمدة الفريق فقط / Customer data is written by the quote tool')
+  p.setWarningOnly(true)
+  p.setUnprotectedRanges([sh.getRange(2, colOf_('status'), rows, TEAM_KEYS.length)])
+  return sh
+}
+
+function setupStaff_(ss) {
+  var sh = plainSheet_(ss, SHEETS.staff, STAFF_HEADERS)
+  sh.setColumnWidth(1, 280)
+  sh.setColumnWidth(2, 180)
+  sh.getRange(1, 1).setNote('ضع بريد Google لكل موظف مسموح له بدخول لوحة الإدارة، واحدًا في كل صف. حذف الصف يمنع الدخول فورًا.')
+  sh.getRange(1, 2).setNote('الاسم يظهر في قائمة «المسؤول» في ورقة الطلبات.')
+  sh.getRange(2, 1, sh.getMaxRows() - 1, 1).setNumberFormat('@')
+  sh.setTabColor('#1E7E4F')
+  protect_(sh)
+  return sh
+}
+
+function setupPricing_(ss) {
+  var sh = plainSheet_(ss, SHEETS.pricing, PRICING_HEADERS)
+  sh.setColumnWidth(1, 170)
+  sh.setColumnWidth(2, 140)
+  sh.setColumnWidth(3, 200)
+  sh.setColumnWidth(4, 60)
+  sh.setColumnWidth(5, 300)
+  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd  hh:mm')
+  sh.getRange(1, 1).setNote('تُنشر الأسعار وتُسترجع من صفحة «الأسعار» في لوحة الإدارة فقط. لا تعدّل هذه الورقة يدويًا.')
+  sh.setTabColor('#6C757D')
+  protect_(sh)
+}
+
+function setupLog_(ss) {
+  var sh = plainSheet_(ss, SHEETS.log, LOG_HEADERS)
+  sh.setColumnWidth(1, 140)
+  sh.setColumnWidth(2, 120)
+  sh.setColumnWidth(3, 120)
+  sh.setColumnWidth(4, 460)
+  sh.getRange(2, 1, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd  hh:mm')
+  sh.setTabColor('#CED4DA')
+  protect_(sh)
+}
+
+/** Live counts, all formulas over the Leads tab — nothing to maintain. */
+function setupSummary_(ss) {
+  var sh = ss.getSheetByName(SHEETS.summary) || ss.insertSheet(SHEETS.summary)
+  sh.clear()
+  sh.getProtections(SpreadsheetApp.ProtectionType.SHEET).forEach(function (p) {
+    p.remove()
+  })
+  sh.setRightToLeft(true)
+  sh.setTabColor('#1A56DB')
+  var L = "'" + SHEETS.leads + "'!"
+  var colRange = function (key) {
+    var c = letter_(colOf_(key))
+    return L + c + '2:' + c
+  }
+  var date = colRange('submittedAt')
+  var status = colRange('status')
+  var pkg = colRange('package')
+  var price = colRange('priceLyd')
+  var follow = colRange('followUp')
+  var rows = [
+    ['ملخص الطلبات', 'Leads summary', ''],
+    ['', '', ''],
+    ['إجمالي الطلبات', 'All leads', '=COUNTA(' + colRange('name') + ')'],
+    ['آخر 7 أيام', 'Last 7 days', '=COUNTIF(' + date + ',">="&(TODAY()-7))'],
+    ['هذا الشهر', 'This month', '=COUNTIF(' + date + ',">="&(EOMONTH(TODAY(),-1)+1))'],
+    ['متابعات حان موعدها', 'Follow-ups due', '=COUNTIFS(' + follow + ',"<="&TODAY(),' + status + ',"<>تم البيع",' + status + ',"<>لم يتم")'],
+    ['', '', ''],
+    ['حسب الحالة', 'By status', ''],
+  ]
+  STATUS_VALUES.forEach(function (st) {
+    rows.push([st, '', '=COUNTIF(' + status + ',"' + st + '")'])
+  })
+  rows.push(['قيمة المبيعات (د.ل)', 'Sold value (LYD)', '=SUMIF(' + status + ',"تم البيع",' + price + ')'])
+  rows.push(['', '', ''])
+  rows.push(['حسب الباقة', 'By package', ''])
+  ;['S', 'M', 'L', 'XL', 'XXL', 'مخصّص'].forEach(function (t) {
+    rows.push([t, '', '=COUNTIF(' + pkg + ',"' + t + '")'])
+  })
+  sh.getRange(1, 1, rows.length, 3).setValues(rows)
+  sh.getRange(1, 1, 1, 3).setFontSize(16).setFontWeight('bold').setFontColor('#BD202F')
+  // Section headings: "By status" and "By package".
+  sh.getRange(8, 1, 1, 2).setFontWeight('bold').setBackground('#F1F3F5')
+  sh.getRange(8 + STATUS_VALUES.length + 3, 1, 1, 2).setFontWeight('bold').setBackground('#F1F3F5')
+  sh.getRange(3, 3, rows.length - 2, 1).setFontWeight('bold').setFontSize(12).setHorizontalAlignment('center').setNumberFormat('#,##0')
+  sh.getRange(6, 1, 1, 3).setFontColor('#BD202F')
+  sh.setColumnWidth(1, 200)
+  sh.setColumnWidth(2, 160)
+  sh.setColumnWidth(3, 120)
+  sh.setFrozenRows(1)
+  protect_(sh)
+}
+
+/** A plain-language guide for the team, in Arabic and English. */
+function setupGuide_(ss) {
+  var sh = ss.getSheetByName(SHEETS.guide) || ss.insertSheet(SHEETS.guide)
+  sh.clear()
+  sh.getProtections(SpreadsheetApp.ProtectionType.SHEET).forEach(function (p) {
+    p.remove()
+  })
+  sh.setRightToLeft(true)
+  sh.setTabColor('#BD202F')
+  var rows = [
+    ['دليل استخدام جدول طلبات القمة', 'Al Qema quote sheet — how to use it'],
+    ['', ''],
+    ['ما هذا الجدول؟', 'What is this?'],
+    ['كل عميل يكمل نموذج عرض السعر على الموقع يظهر هنا تلقائيًا كصف جديد في ورقة «الطلبات». لا حاجة لإدخال أي شيء يدويًا.',
+      'Every customer who completes the quote form on the website appears here automatically, as a new row in the Leads tab. Nothing is typed in by hand.'],
+    ['', ''],
+    ['ورقة الطلبات', 'The Leads tab'],
+    ['الأعمدة مقسّمة إلى أربعة أقسام بألوان مختلفة:', 'The columns come in four colour-coded sections:'],
+    ['• أحمر — العميل والعرض: الوقت، الاسم، واتساب، المدينة، الباقة والسعر.', '• Red — the customer and the quote: time, name, WhatsApp, city, package and price.'],
+    ['• أخضر — متابعة الفريق: الحالة، المسؤول، موعد المتابعة، ملاحظات الفريق. هذه الأعمدة فقط للكتابة.', '• Green — the team’s follow-up: status, assigned to, follow-up date, team notes. These are the only columns to type in.'],
+    ['• أسود — النظام المقترح: الإنفرتر، الألواح، البطاريات، وطريقة التسعير.', '• Black — the quoted system: inverter, panels, battery and how it was priced.'],
+    ['• رمادي — إجابات العميل في النموذج: الانقطاع، المكيفات، الأجهزة، السطح، وملاحظاته.', '• Grey — the customer’s answers: power cuts, ACs, appliances, roof and notes.'],
+    ['مرّر الفأرة فوق عنوان أي عمود لرؤية شرحه.', 'Hover over any column header to see what it means.'],
+    ['', ''],
+    ['كيف أتابع العميل؟', 'How do I follow a lead up?'],
+    ['1. اضغط رقم واتساب لفتح المحادثة مباشرة.', '1. Tap the WhatsApp number to open a chat straight away.'],
+    ['2. غيّر «الحالة» من القائمة: جديد ← تم التواصل ← أُرسل العرض ← تم البيع أو لم يتم.', '2. Change the Status from the dropdown: New → Contacted → Quote sent → Sold or Lost.'],
+    ['3. اختر «المسؤول» من القائمة (الأسماء من ورقة الموظفين).', '3. Pick who is responsible under Assigned to (names come from the Staff tab).'],
+    ['4. ضع «موعد المتابعة». عندما يحين الموعد يصبح التاريخ أحمر.', '4. Set a Follow-up date. It turns red when the day arrives.'],
+    ['5. اكتب أي ملاحظة في «ملاحظات الفريق».', '5. Write anything else in Team notes.'],
+    ['', ''],
+    ['البحث والتصفية', 'Searching and filtering'],
+    ['اضغط أيقونة التصفية في عنوان أي عمود لترتيب الطلبات أو عرض حالة معيّنة فقط (مثلًا: جديد).', 'Click the filter icon in any header to sort, or to show only one status (for example, New).'],
+    ['', ''],
+    ['الأوراق الأخرى', 'The other tabs'],
+    ['• ملخص — أرقام تُحدَّث تلقائيًا: عدد الطلبات، حسب الحالة والباقة، والمتابعات المستحقة.', '• Summary — live numbers: leads, by status and package, and follow-ups due.'],
+    ['• الموظفون — من يُسمح له بدخول لوحة الإدارة، وأسماؤهم لقائمة «المسؤول».', '• Staff — who may sign in to the admin panel, and the names for Assigned to.'],
+    ['• الأسعار — كل إصدارات الأسعار المنشورة. تُدار من صفحة «الأسعار» في لوحة الإدارة فقط.', '• Pricing — every published price version. Managed only from the admin panel’s Pricing page.'],
+    ['• السجل — أخطاء تقنية للمطوّر. يمكن تجاهله.', '• Log — technical errors for the developer. Safe to ignore.'],
+    ['', ''],
+    ['تنزيل كملف Excel', 'Download as Excel'],
+    ['ملف ← تنزيل ← Microsoft Excel (.xlsx).', 'File → Download → Microsoft Excel (.xlsx).'],
+    ['', ''],
+    ['مهم', 'Important'],
+    ['لا تحذف الصفوف ولا تغيّر ترتيب الأعمدة أو أسماء الأوراق — لوحة الإدارة تعتمد عليها.', 'Do not delete rows, reorder columns or rename tabs — the admin panel relies on them.'],
+  ]
+  sh.getRange(1, 1, rows.length, 2).setValues(rows).setWrap(true).setVerticalAlignment('top').setFontSize(11)
+  sh.getRange(1, 1, 1, 2).setFontSize(16).setFontWeight('bold').setFontColor('#BD202F')
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i]
+    var isHeading = i > 0 && r[0] && rows[i - 1][0] === '' && rows[i + 1] && rows[i + 1][0] !== ''
+    if (isHeading) sh.getRange(i + 1, 1, 1, 2).setFontWeight('bold').setBackground('#F1F3F5').setFontSize(12)
+  }
+  sh.setColumnWidth(1, 520)
+  sh.setColumnWidth(2, 520)
+  sh.setFrozenRows(1)
+  protect_(sh)
+}
+
+/** A tab with a styled header row, frozen; created if missing. */
+function plainSheet_(ss, name, headers) {
   var sh = ss.getSheetByName(name) || ss.insertSheet(name)
   if (sh.getMaxColumns() < headers.length) sh.insertColumnsAfter(sh.getMaxColumns(), headers.length - sh.getMaxColumns())
-  sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold')
+  sh.setRightToLeft(true)
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold').setWrap(true)
+    .setBackground('#2D2D2D').setFontColor('#FFFFFF').setVerticalAlignment('middle')
+  sh.setRowHeight(1, 42)
   sh.setFrozenRows(1)
   return sh
 }
@@ -510,7 +850,7 @@ function ensureSheet_(ss, name, headers) {
 /** Only the owner (the account running the script) may edit these tabs. */
 function protect_(sh) {
   var p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)[0] || sh.protect()
-  p.setDescription('Managed by the Al Qema quote tool')
+  p.setDescription('يُدار تلقائيًا من أداة عروض القمة / Managed by the Al Qema quote tool')
   p.removeEditors(p.getEditors())
   if (p.canDomainEdit()) p.setDomainEdit(false)
 }

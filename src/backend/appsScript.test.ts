@@ -36,36 +36,70 @@ beforeEach(() => {
 const signIn = (email = 'staff@alqema.ly') => h.post({ action: 'login', idToken: 'good:' + email })
 
 describe('setup', () => {
-  it('creates the five tabs with headers and a token secret', () => {
-    expect([...h.sheets.keys()].sort()).toEqual(['LeadData', 'Leads', 'Log', 'Pricing', 'Staff'].sort())
-    const headers = h.sheet('Leads').getRange(1, 1, 1, 26).getValues()[0]
-    expect(headers[0]).toContain('Submitted')
-    expect(headers[24]).toContain('Status')
-    expect(h.sheet('LeadData').hidden).toBe(true)
+  it('creates the seven tabs with headers and a token secret', () => {
+    const names = h.value<Record<string, string>>('SHEETS')
+    expect([...h.sheets.keys()].sort()).toEqual(Object.values(names).sort())
+    const n = h.value<unknown[]>('COLUMNS').length
+    const headers = h.sheet('leads').getRange(1, 1, 1, n).getValues()[0]
+    expect(headers[0]).toBe('وقت الإرسال\nSubmitted')
+    expect(headers[h.col('status') - 1]).toBe('الحالة\nStatus')
+    expect(h.sheet('data').hidden).toBe(true)
     expect(h.props.get('TOKEN_SECRET')?.length).toBeGreaterThan(40)
+  })
+
+  it('puts the team columns right after the customer and the quote', () => {
+    expect(h.col('name')).toBe(2)
+    expect(h.col('priceLyd')).toBe(7)
+    expect([h.col('status'), h.col('assignedTo'), h.col('followUp'), h.col('teamNotes')]).toEqual([8, 9, 10, 11])
+  })
+
+  it('renames the tabs made by the first version, keeping their rows', () => {
+    // Simulate the first version's layout: English tab names.
+    const first = makeHarness()
+    const ss = first.value<{ insertSheet(n: string): { getRange(r: number, c: number, a: number, b: number): { setValues(v: unknown[][]): unknown } } }>(
+      'SpreadsheetApp.getActiveSpreadsheet()',
+    )
+    ss.insertSheet('Staff').getRange(1, 1, 2, 1).setValues([['email'], ['keep@alqema.ly']])
+    first.setup()
+    expect(first.sheets.has('Staff')).toBe(false)
+    expect(first.sheet('staff').getRange(2, 1, 1, 1).getValues()[0][0]).toBe('keep@alqema.ly')
+  })
+
+  it('refuses to re-lay-out a Leads tab that already holds rows in another layout', () => {
+    const other = makeHarness()
+    const ss = other.value<{ insertSheet(n: string): { getRange(r: number, c: number, a: number, b: number): { setValues(v: unknown[][]): unknown } } }>(
+      'SpreadsheetApp.getActiveSpreadsheet()',
+    )
+    ss.insertSheet('Leads').getRange(1, 1, 2, 2).setValues([['Submitted', 'Reference'], ['x', 'y']])
+    expect(() => other.setup()).toThrow(/different column layout/)
   })
 
   it('is safe to run twice', () => {
     const secret = h.props.get('TOKEN_SECRET')
     h.setup()
     expect(h.props.get('TOKEN_SECRET')).toBe(secret)
-    expect(h.sheet('Leads').getLastRow()).toBe(1)
+    expect(h.sheet('leads').getLastRow()).toBe(1)
   })
 })
 
 describe('submitLead', () => {
   it('appends one Leads row and one LeadData row', () => {
     expect(h.post(lead())).toEqual({ ok: true })
-    const leads = h.sheet('Leads')
+    const leads = h.sheet('leads')
     expect(leads.getLastRow()).toBe(2)
-    const row = leads.getRange(2, 1, 1, 26).getValues()[0]
+    const n = h.value<unknown[]>('COLUMNS').length
+    const row = leads.getRange(2, 1, 1, n).getValues()[0]
+    const at = (k: string) => row[h.col(k) - 1]
     // The script's Date comes from the sandbox realm, so check its tag.
-    expect(Object.prototype.toString.call(row[0])).toBe('[object Date]')
-    expect(row[1]).toBe(ID)
-    expect(row[2]).toBe('أحمد')
-    expect(row[8]).toBe(8730)
-    expect(row[24]).toBe('جديد')
-    const data = h.sheet('LeadData').getRange(2, 1, 1, 4).getValues()[0]
+    expect(Object.prototype.toString.call(at('submittedAt'))).toBe('[object Date]')
+    expect(at('reference')).toBe(ID)
+    expect(at('name')).toBe('أحمد')
+    expect(at('priceLyd')).toBe(8730)
+    expect(at('status')).toBe('جديد')
+    expect(at('assignedTo')).toBe('')
+    // A tap on the number opens WhatsApp.
+    expect(at('whatsapp')).toBe('=HYPERLINK("https://wa.me/218912345678","+218912345678")')
+    const data = h.sheet('data').getRange(2, 1, 1, 4).getValues()[0]
     expect(data[0]).toBe(ID)
     expect(JSON.parse(String(data[3])).form.name).toBe('أحمد')
   })
@@ -73,19 +107,20 @@ describe('submitLead', () => {
   it('never appends the same submission twice', () => {
     h.post(lead())
     expect(h.post(lead())).toEqual({ ok: true, duplicate: true })
-    expect(h.sheet('Leads').getLastRow()).toBe(2)
+    expect(h.sheet('leads').getLastRow()).toBe(2)
     expect(h.post(lead(ID2)).ok).toBe(true)
-    expect(h.sheet('Leads').getLastRow()).toBe(3)
+    expect(h.sheet('leads').getLastRow()).toBe(3)
   })
 
   it('stores anything that looks like a formula as text', () => {
-    h.post(lead(ID, { name: '=IMPORTDATA("http://x")', city: '@x', customerNotes: '-1+2' }))
-    const row = h.sheet('Leads').getRange(2, 1, 1, 26).getValues()[0]
-    expect(row[2]).toBe('\'=IMPORTDATA("http://x")')
-    expect(row[4]).toBe("'@x")
-    expect(row[21]).toBe("'-1+2")
-    // The phone starts with + too, so it is stored as text, not a formula or a number.
-    expect(row[3]).toBe("'+218912345678")
+    h.post(lead(ID, { name: '=IMPORTDATA("http://x")', city: '@x', customerNotes: '-1+2', panels: '+1' }))
+    const n = h.value<unknown[]>('COLUMNS').length
+    const row = h.sheet('leads').getRange(2, 1, 1, n).getValues()[0]
+    const at = (k: string) => row[h.col(k) - 1]
+    expect(at('name')).toBe('\'=IMPORTDATA("http://x")')
+    expect(at('city')).toBe("'@x")
+    expect(at('customerNotes')).toBe("'-1+2")
+    expect(at('panels')).toBe("'+1")
   })
 
   it('rejects bad input without writing anything', () => {
@@ -100,7 +135,7 @@ describe('submitLead', () => {
     for (const [name, body] of cases) expect(h.post(body).code, name).toBe('invalid')
     expect(h.post('{not json').code).toBe('bad_request')
     expect(h.post({ ...lead(), detail: { big: 'x'.repeat(70 * 1024) } }).code).toBe('too_large')
-    expect(h.sheet('Leads').getLastRow()).toBe(1)
+    expect(h.sheet('leads').getLastRow()).toBe(1)
   })
 
   it('caps the number of submissions per window', () => {
@@ -200,7 +235,7 @@ describe('staff access', () => {
     const oldSig = createHmac('sha256', secret).update(old).digest('base64url')
     expect(expired.post({ action: 'listLeads', token: old + '.' + oldSig }).code).toBe('unauthorized')
 
-    h.sheet('Staff').getRange(2, 1, 1, 1).setValues([['']])
+    h.sheet('staff').getRange(2, 1, 1, 1).setValues([['']])
     expect(h.post({ action: 'listLeads', token: tok }).code).toBe('unauthorized')
   })
 })
@@ -209,7 +244,7 @@ describe('leads for the admin panel', () => {
   it('lists newest first with the team status, and opens one', () => {
     h.post(lead(ID))
     h.post(lead(ID2, { name: 'سالم' }))
-    h.sheet('Leads').getRange(2, 25, 1, 1).setValues([['تم التواصل']])
+    h.sheet('leads').getRange(2, h.col('status'), 1, 1).setValues([['تم التواصل']])
     const tok = signIn().token
     const list = h.post({ action: 'listLeads', token: tok }).leads
     expect(list.map((l: { id: string }) => l.id)).toEqual([ID2, ID])

@@ -56,11 +56,11 @@ afterEach(() => {
 })
 
 describe('the Leads row', () => {
-  it('has exactly the columns the script writes, in its order', () => {
+  it('sends exactly the columns the script expects from the site', () => {
     const h = makeHarness()
-    const scriptKeys = h.value<[string, string][]>('LEAD_COLUMNS').map((c) => c[0])
-    expect([...LEAD_COLUMN_KEYS]).toEqual(scriptKeys)
-    expect(Object.keys(leadToSheetRow(record())).sort()).toEqual([...scriptKeys].sort())
+    const scriptKeys = [...h.value<string[]>('CLIENT_KEYS')].sort()
+    expect([...LEAD_COLUMN_KEYS].sort()).toEqual(scriptKeys)
+    expect(Object.keys(leadToSheetRow(record())).sort()).toEqual(scriptKeys)
   })
 
   it('reads in Arabic, with an E.164 number and no bidi control characters', () => {
@@ -82,8 +82,12 @@ describe('the Leads row', () => {
     const rec = record()
     const r = h.post({ action: 'submitLead', id: rec.id, row: leadToSheetRow(rec), summary: {}, detail: { form: rec.form, result: rec.result } })
     expect(r).toEqual({ ok: true })
-    const line = h.sheet('Leads').getRange(2, 1, 1, 26).getValues()[0]
-    expect(line[21]).toBe('\'=HYPERLINK("x")')
+    const n = h.value<unknown[]>('COLUMNS').length
+    const line = h.sheet('leads').getRange(2, 1, 1, n).getValues()[0]
+    expect(line[h.col('customerNotes') - 1]).toBe('\'=HYPERLINK("x")')
+    expect(line[h.col('inverter') - 1]).toMatch(/kVA$/)
+    expect(line[h.col('panels') - 1]).toMatch(/× \d+ W = [\d.]+ kWp/)
+    expect(line[h.col('battery') - 1]).toMatch(/kWh قابلة للاستخدام/)
   })
 })
 

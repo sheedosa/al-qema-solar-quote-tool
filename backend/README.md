@@ -4,11 +4,27 @@ Everything the quote tool stores lives in a single Google Sheet owned by Al Qema
 
 | Tab | What it holds | Who edits it |
 |---|---|---|
-| **Leads** | One row per customer submission, newest at the bottom. Arabic values, headers in Arabic and English. The last two columns, **Status** (a dropdown) and **Team notes**, are for the team. | The team: Status and Team notes only |
-| **LeadData** | Hidden. The full form and result behind each lead, for the admin panel's detail view. | Nobody by hand |
-| **Pricing** | Every published pricing version; exactly one is active. Written by the admin panel's Pricing page. | Nobody by hand |
-| **Staff** | The Google email addresses allowed into the admin panel. | The sheet's owner |
-| **Log** | Rejected requests and errors, for diagnosis. | Nobody |
+| **دليل الاستخدام Guide** | How to use the sheet, in Arabic and English. | Nobody |
+| **ملخص Summary** | Live counts: all leads, last 7 days, this month, follow-ups due, by status, sold value, by package. | Nobody (formulas) |
+| **الطلبات Leads** | One row per customer submission, in four colour-coded sections (below). | The team: the green columns only |
+| **الموظفون Staff** | Google emails allowed into the admin panel, and the names shown in *Assigned to*. | The sheet's owner |
+| **الأسعار Pricing** | Every published pricing version; exactly one is active. Written by the admin panel. | Nobody by hand |
+| **السجل Log** | Rejected requests and errors, for diagnosis. | Nobody |
+| **LeadData** | Hidden. The full form and result behind each lead, for the admin panel's detail view. | Nobody |
+
+The Leads tab reads right to left, with the header in Arabic over English and a note on
+every header explaining the column:
+
+| Section | Header colour | Columns |
+|---|---|---|
+| Customer and quote | red | Submitted, Name, WhatsApp (tap to open a chat), City, Property, Package, Price |
+| Team follow-up | green | Status (colour-coded dropdown), Assigned to (names from Staff), Follow-up date (turns red when due), Team notes |
+| Quoted system | black | Inverter, Panels, Battery, Pricing method, Confidence, Warnings |
+| Customer's answers | grey | Daily cuts, ACs, Fridge, Freezer, Lighting, Appliances, System type, Cut priority, Roof, Shade, Customer notes, Language |
+| Reference | light grey, folded away | Reference id, Pricing version |
+
+Date and name stay frozen while scrolling, every header has a filter, rows are shaded
+alternately, and typing outside the green columns shows a warning first.
 
 An Apps Script attached to the sheet ([`google-apps-script/Code.gs`](google-apps-script/Code.gs))
 is the only server. The website sends each submission to it, reads the active prices from it,
@@ -37,15 +53,17 @@ personal one. Whoever owns the sheet owns the leads.
 2. Google asks for permission. Choose your account → **Advanced** → **Go to (project name)** →
    **Allow**. The warning appears because the script is your own and unpublished; it only
    gets access to this one spreadsheet and to Google's sign-in check.
-3. Back in the sheet, the five tabs now exist. **Leads** is right-to-left with its Status
-   dropdown; **LeadData** is hidden.
+3. Back in the sheet, the six tabs above now exist, in order, and **LeadData** is hidden.
 
-Running `setup` again later is safe: it only adds what is missing.
+Running `setup` again later is safe: it re-applies the layout and never deletes a
+submission. Tabs made by the first version of the script (`Leads`, `Staff`, …) are renamed
+and kept.
 
 ### 3. Add the staff
 
-In the **Staff** tab, put each person's Google email in column A, one per row, under the
-header. Only these accounts can open the admin panel. Removing a row locks that person out
+In the **الموظفون Staff** tab, put each person's Google email in column A and their name in
+column B, one per row, under the header. Only these accounts can open the admin panel, and
+the names appear in the Leads tab's *Assigned to* dropdown. Removing a row locks that person out
 immediately, even if they are signed in.
 
 A staff member with a Microsoft work address can still sign in: they create a free Google
